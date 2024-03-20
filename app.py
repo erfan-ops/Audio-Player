@@ -1,4 +1,5 @@
 import music
+from music import SoundBuffer
 import customtkinter as ctk
 import numpy as np
 from soundfile import read as sfRead
@@ -13,6 +14,8 @@ from pydub.audio_segment import AudioSegment
 from pydub.playback import play as dubplay
 from icon import daIconFile
 from tempfile import mkstemp
+from pyaudio import Stream
+import matplotlib.pyplot as plt
 
 
 class Tk(ctk.CTk, TkinterDnD.DnDWrapper):
@@ -65,8 +68,9 @@ class App:
         self.loaded_file: str = ""
         
         self.progress_bar = ctk.CTkProgressBar(self.window,
-                                               width=440)
-        self.progress_bar.place(x=20, y=320)
+                                               width=440,
+                                               height=15)
+        self.progress_bar.place(x=20, y=330)
         self.progress_bar.set(0)
         
         self.bcr = 8 # button_corner_radius
@@ -89,7 +93,20 @@ class App:
         self.window.mainloop()
     
     
-    def config_stream(self, samp_width: int, channels: int, sample_rate: int):
+    def visualize_sound(self, wave: SoundBuffer, sample_rate: int) -> None:
+        times = np.linspace(0, wave.size/sample_rate, wave.size)
+        duration = wave.size / sample_rate
+        
+        plt.figure(figsize=(15, 5))
+        plt.plot(times, wave)
+        plt.title('wave:')
+        plt.ylabel('Signal Value')
+        plt.xlabel('Time (s)')
+        plt.xlim(0, duration)
+        plt.show()
+    
+    
+    def config_stream(self, samp_width: int, channels: int, sample_rate: int) -> Stream:
         if type(samp_width) == str:
             samp_width = self.get_sampwidth_from_str(samp_width)
         
@@ -99,7 +116,7 @@ class App:
                                         output=True)
     
     
-    def play_loaded(self):
+    def play_loaded(self) -> None:
         if self.loaded_file:
             y = Thread(target=self.play, args=(self.loaded_file,))
             y.start()
@@ -108,7 +125,7 @@ class App:
             self.play_file()
     
     
-    def play(self, file_path: str):
+    def play(self, file_path: str) -> None:
         self.timer_text = 0
         
         fformat = splitext(file_path)[1]
@@ -181,12 +198,13 @@ class App:
             self.m.play_buffer(data)
             
     
-    def play_and_close(self, file_name: str):
+    def play_and_close(self, file_name: str) -> None:
+        self.loaded_file = file_name
         self.play(file_name)
         self.on_quit()
     
     
-    def play_file(self):
+    def play_file(self) -> None:
         self.load_file()
        
         if self.loaded_file:
@@ -194,7 +212,7 @@ class App:
             y.start()
     
     
-    def visualize_sound(self):
+    def visualize_sound(self) -> None:
         if not self.loaded_file:
             self.load_file()
         file_path = self.loaded_file
@@ -230,12 +248,13 @@ class App:
     
     
     def on_quit(self):
+        self.iconFile.close()
         self.m.done()
         self.window.quit()
         sysExit()
     
     
-    def load_file(self):
+    def load_file(self) -> None:
         file = askopenfilename(title="select a sound file",
                                defaultextension=("sound files", ".wav .erfan"),
                                filetypes=[("sound files", ".erfan"),
@@ -247,7 +266,7 @@ class App:
                                           ("sound files", ".flac"),
                                           ("sound files", ".ogg"),
                                           ("sound files", ".m4a"),
-                                          ("sound files", ".acc"),
+                                          ("sound files", ".aac"),
                                           ("sound files", ".wma"),
                                           ("erfan", ".erfan"),
                                           ("wav", ".wav"),
@@ -258,7 +277,7 @@ class App:
                                           ("flac", ".flac"),
                                           ("ogg", ".ogg"),
                                           ("m4a", ".m4a"),
-                                          ("acc", ".acc"),
+                                          ("aac", ".aac"),
                                           ("wma", ".wma"),
                                           ("any", ".*")])
         
@@ -299,7 +318,7 @@ class App:
         return dtype
     
     
-    def update_time(self, timer: ctk.CTkLabel):
+    def update_time(self, timer: ctk.CTkLabel) -> None:
         if self.song_duration and self.timer_text < self.song_duration:
             self.timer_text = perf_counter() - self.start
             text = ("%.2f" % self.timer_text)
@@ -309,7 +328,7 @@ class App:
             self.progress_bar.set(self.timer_text/self.song_duration)
     
     
-    def export_to_wav(self, file_path: str|None=None):
+    def export_to_wav(self, file_path: str|None=None) -> None:
         if not file_path:
             if not self.loaded_file:
                 self.load_file()
@@ -329,7 +348,7 @@ class App:
         self.m.export_to_wav(file_path, data, sample_rate, dtype)
         
     
-    def save_as(self, file_path: str|None=None, fformat: str="wav", bitrate: int=320):
+    def save_as(self, file_path: str|None=None, fformat: str="wav", bitrate: int=320) -> None:
         remove_temp_file = False
         if not file_path:
             if not self.loaded_file:
@@ -418,7 +437,7 @@ class App:
             remove(wav_file_full_name)
     
     
-    def load_dragged(self, event):
+    def load_dragged(self, event) -> None:
         files = event.data.split("} {")
         for file_path in files:
             file_path = file_path.strip("{}")
@@ -436,7 +455,12 @@ class App:
         self.label_at_02.grid(row=0, column=2, columnspan=20)
     
     
-    def export(self):
+    def on_quit_TopLevel(self):
+        self.export_window.destroy()
+        del self.export_window
+    
+    
+    def export(self) -> None:
         win_exists=False
         try:
             win_exists = self.export_window.winfo_exists()
@@ -449,6 +473,8 @@ class App:
         self.export_window.title("Export to:")
         self.export_window.resizable(False, False)
         self.export_window.geometry("220x360")
+        
+        self.export_window.protocol("WM_DELETE_WINDOW", self.on_quit_TopLevel)
         
         
         ctk.CTkLabel(self.export_window,
@@ -521,7 +547,7 @@ class App:
                                                                         pady=self.export_buttons_pady)
     
     
-    def main(self):
+    def main(self) -> None:
         open_btn = ctk.CTkButton(self.window,
                                  text="open file",
                                  command=self.load_file,
