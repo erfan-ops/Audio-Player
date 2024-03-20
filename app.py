@@ -1,12 +1,11 @@
 import music
-from music import SoundBuffer
 import customtkinter as ctk
 import numpy as np
 from soundfile import read as sfRead
 from tkinter.filedialog import askopenfilename, asksaveasfilename
 from tkinterdnd2 import TkinterDnD, DND_FILES
 from sys import exit as sysExit, argv
-from os import getcwd, remove
+from os import remove
 from os.path import exists, split, splitext
 from threading import Thread
 from time import perf_counter
@@ -80,7 +79,6 @@ class App:
         self.label_at_02 = ctk.CTkLabel(self.window, text="")
         self.label_at_02.grid(row=0, column=2, columnspan=20)
         
-        self.direc = getcwd()
         
         if len(argv) > 1 and exists(argv[1]):
             self.song_duration = 0
@@ -93,9 +91,10 @@ class App:
         self.window.mainloop()
     
     
-    def visualize_sound(self, wave: SoundBuffer, sample_rate: int) -> None:
+    def visualize_sound(self, wave: music.SoundBuffer, sample_rate: int) -> None:
         times = np.linspace(0, wave.size/sample_rate, wave.size)
         duration = wave.size / sample_rate
+        
         
         plt.figure(figsize=(15, 5))
         plt.plot(times, wave)
@@ -103,6 +102,7 @@ class App:
         plt.ylabel('Signal Value')
         plt.xlabel('Time (s)')
         plt.xlim(0, duration)
+        plt.get_current_fig_manager().window.wm_iconbitmap(self.ICON_PATH)
         plt.show()
     
     
@@ -212,7 +212,7 @@ class App:
             y.start()
     
     
-    def visualize_sound(self) -> None:
+    def visualize_sound_file(self) -> None:
         if not self.loaded_file:
             self.load_file()
         file_path = self.loaded_file
@@ -237,14 +237,13 @@ class App:
         elif fformat in ["aac", "wma", "m4a"]:
             sound = AudioSegment.from_file(file_path, fformat)
             sample_rate = sound.frame_rate
-            data = sound.raw_data
-            print(data, type(data))
+            data = np.array(sound.get_array_of_samples(), dtype=np.float32)
         
         else:
             data, sample_rate = sfRead(file_path)
-            
         
-        self.m.visualize_sound(data, sample_rate)
+        
+        self.visualize_sound(data, sample_rate)
     
     
     def on_quit(self):
@@ -571,7 +570,7 @@ class App:
         
         visualize_btn = ctk.CTkButton(self.window,
                                      text="visualize",
-                                     command=self.visualize_sound,
+                                     command=self.visualize_sound_file,
                                      width=80,
                                      corner_radius=self.bcr)
         visualize_btn.place(relx=0.9, rely=0.1, anchor=ctk.CENTER)
