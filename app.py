@@ -248,6 +248,7 @@ class App:
     
     def on_quit(self):
         self.iconFile.close()
+        remove(self.ICON_PATH)
         self.m.done()
         self.window.quit()
         sysExit()
@@ -361,7 +362,6 @@ class App:
         file_name, file_format = splitext(file_name)
         file_format = file_format[1:]
         
-        print(fformat)
         file_save_path = asksaveasfilename(title="save to:",
                                            initialfile=file_name,
                                            defaultextension=f".{fformat}",
@@ -415,8 +415,8 @@ class App:
             self.export_to_wav(file_path)
             file_format = "wav"
             file_path = direc+file_name+"."+file_format
-            
-        print(fformat)
+        
+        
         if codec in ["adts", "mp3", "aac"]:
             
             AudioSegment.from_file(file_path, file_format).export(file_save_path,
