@@ -37,7 +37,9 @@ class Sounds:
         
         self.dtype = dtype
         
-    
+    # caches the waves so if you had to generate a note multiple times its not gonna take long to execute
+    # you can't use the lru_cache from the functools module because waves are stored as numpy arrays and numpy arrays are not hashable
+    # so this decorator will save a tuple of that numpy array in self.existed_notes and convert it back to a numpy array each time you want to use that wave
     def cache_wave(wave_type:str):
         """returns the cached value if available, otherwise caches the returned wave"""
         def decorator(func):
@@ -152,6 +154,9 @@ class Sounds:
     
     @cache_wave("marimb")
     def marimba(self, freq:float, dur:float, vol: float):
+        """creates a "not even close to marimba" sound based on the given frequency, duration and amplitude or volume\n
+        warning!: very annoying sound"""
+        
         pi_2_samples_num = self.tau * np.arange(self.default_sample_rate * dur)
         buf = vol * np.sin(pi_2_samples_num * freq / self.default_sample_rate)
         buf += vol*0.75 * np.sin(pi_2_samples_num * freq*10 / self.default_sample_rate)
@@ -164,11 +169,11 @@ class Sounds:
     @cache_wave("tst")
     def test(self, freq:float, dur:float, vol: float):
         buf = np.sin(self.tau * np.arange(self.default_sample_rate * dur) * freq / self.default_sample_rate)
-        for h in range(3, 1000, 4):
+        for h in range(2, 1000, 1):
             f = freq*h
             if f > 20000:
                 break
-            buf += np.sin(self.tau * np.arange(self.default_sample_rate * dur) * f / self.default_sample_rate)/(2*h-1)**2
+            buf += np.sin(self.tau * np.arange(self.default_sample_rate * dur) * f / self.default_sample_rate)/h
         
         wave = ((self.eight_over_pi_sqr)*vol*buf).astype(self.dtype)
         return wave
@@ -186,7 +191,7 @@ class Export:
     def __init__(self) -> None:
         pass
     
-    
+    # converts a float32 array to an int type
     def float2pcm(self, sig: np.ndarray, dtype: Literal["int32", "int16", "uint8"]="int16") -> np.ndarray:
         sig = np.asarray(sig)
         if sig.dtype.kind != 'f':
@@ -200,7 +205,7 @@ class Export:
         offset = i.min + abs_max
         return (sig * abs_max + offset).clip(i.min, i.max).astype(dtype)
     
-    
+    # converts an int type array to a float32
     def pcm2float(self, sig: np.ndarray, dtype: Literal["float32"]="float32") -> np.ndarray[np.floating]:
         sig = np.asarray(sig)
         if sig.dtype.kind not in 'iu':
@@ -214,7 +219,7 @@ class Export:
         offset = i.min + abs_max
         return (sig.astype(dtype) - offset) / abs_max
         
-    
+    # exports to .erfan file which is completely useless but you can play them with the app.py file adn you can convert them to wav file which is actualy useful
     def export_to_erfan(self, file_name:str, buffer: np.ndarray|bytes, sample_rate: int, dtype, channels: int) -> None:
         if type(buffer) != bytes:
             dtype = buffer.dtype
@@ -250,7 +255,7 @@ class Export:
         
         wf.write(f"{file_path}.wav", sample_rate, buffer)
     
-    
+    # reads and return the bytes containing the sound from an erfan file
     def read_from_erfan(self, file_name: str) -> bytes:
         with open(file_name, "rb") as f:
             data = f.read()
@@ -288,7 +293,7 @@ class Export:
             f.write(sample_rate.to_bytes(2, "little"))
             f.write(data)
 
-    
+    # converts a float32 wav file to an int type
     def wav_float32_to_int(self, file_path: str, dtype: Literal["int32", "int16", "uint8"]="int16"):
         with open(file_path, "rb") as f:
             sample_rate, data = wf.read(file_path)

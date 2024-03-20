@@ -248,7 +248,10 @@ class App:
     
     def on_quit(self):
         self.iconFile.close()
-        remove(self.ICON_PATH)
+        try:
+            remove(self.ICON_PATH)
+        except Exception:
+            pass
         self.m.done()
         self.window.quit()
         sysExit()
