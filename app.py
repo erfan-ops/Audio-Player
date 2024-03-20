@@ -46,7 +46,7 @@ class App:
         self.window = Tk()
         self.window.title("Music Player by erfan :D")
         self.window.resizable(False, False)
-        self.window.geometry("320x240")
+        self.window.geometry("480x360")
         self.window.iconbitmap(default=self.ICON_PATH)
         
         self.m = music.Music()
@@ -65,8 +65,8 @@ class App:
         self.loaded_file: str = ""
         
         self.progress_bar = ctk.CTkProgressBar(self.window,
-                                               width=300)
-        self.progress_bar.place(x=10, y=210)
+                                               width=440)
+        self.progress_bar.place(x=20, y=320)
         self.progress_bar.set(0)
         
         self.bcr = 8 # button_corner_radius
@@ -111,11 +111,6 @@ class App:
     def play(self, file_path: str):
         self.timer_text = 0
         
-        self.progress_bar.destroy()
-        self.progress_bar = ctk.CTkProgressBar(self.window,
-                                               width=300)
-        self.progress_bar.place(x=10, y=210)
-        
         fformat = splitext(file_path)[1]
         fformat = fformat.removeprefix(".")
         
@@ -125,13 +120,20 @@ class App:
                 data = f.read()
                 sample_rate = int.from_bytes(data[0:4], "little")
                 dtype = int.from_bytes(data[4:6], "little")
-                dtype = self.get_sampwidth_from_number(dtype)
-                data = np.frombuffer(data[8:], dtype=dtype)
-                self.song_duration = len(data)/sample_rate
+                strdtype = self.get_sampwidth_from_number(dtype)
+                n_channels = int.from_bytes(data[6:8], "little")
+                data = np.frombuffer(data[8:], dtype=strdtype)
+                self.song_duration = data.size/sample_rate
                 
                 duration = ctk.CTkLabel(self.window,
                                         text=round(self.song_duration, 2))
                 duration.grid(row=0, column=1)
+                
+                self.m.stream.stop_stream()
+                self.m.stream.close()
+                self.m.stream = self.config_stream(samp_width=self.m.AUDIO_OBJECT.get_format_from_width(dtype),
+                                                channels=n_channels,
+                                                sample_rate=sample_rate)
                 
                 self.window.after(self.timer_step_ms, self.update_time, self.timer)
                 self.start = perf_counter()
@@ -155,14 +157,11 @@ class App:
         #-- other files such as mp3, ogg, wav, aiff, flac --#
         else:
             data, sample_rate = sfRead(file_path)
-            self.song_duration = len(data)/sample_rate
+            self.song_duration = data.size/sample_rate
             
             duration = ctk.CTkLabel(self.window,
                                     text=round(self.song_duration, 2))
             duration.grid(row=0, column=1)
-            
-            self.window.after(self.timer_step_ms, self.update_time, self.timer)
-            self.start = perf_counter()
             
             if data.dtype == "float64":
                 data = data.astype(np.float32)
@@ -171,10 +170,13 @@ class App:
             
             self.m.stream.stop_stream()
             self.m.stream.close()
-            self.m.stream.stop_stream()
             self.m.stream = self.config_stream(samp_width=self.m.AUDIO_OBJECT.get_format_from_width(dtype),
                                                channels=data.ndim,
                                                sample_rate=sample_rate)
+            
+            self.window.after(self.timer_step_ms, self.update_time, self.timer)
+            self.start = perf_counter()
+            
             
             self.m.play_buffer(data)
             
@@ -190,6 +192,41 @@ class App:
         if self.loaded_file:
             y = Thread(target=self.play, args=(self.loaded_file,))
             y.start()
+    
+    
+    def visualize_sound(self):
+        if not self.loaded_file:
+            self.load_file()
+        file_path = self.loaded_file
+        
+        fformat = splitext(file_path)[1]
+        fformat = fformat.removeprefix(".")
+        
+        if fformat == "erfan":
+            with open(self.loaded_file, "rb") as f:
+                data = f.read()
+                sample_rate = int.from_bytes(data[0:4], "little")
+                dtype = int.from_bytes(data[4:6], "little")
+                n_channels = int.from_bytes(data[6:8], "little")
+                
+                dtype = self.get_sampwidth_from_number(dtype)
+                
+                if n_channels > 1:
+                    data = np.frombuffer(data[8:], dtype=dtype)[0]
+                else:
+                    data = np.frombuffer(data[8:], dtype=dtype)
+        
+        elif fformat in ["aac", "wma", "m4a"]:
+            sound = AudioSegment.from_file(file_path, fformat)
+            sample_rate = sound.frame_rate
+            data = sound.raw_data
+            print(data, type(data))
+        
+        else:
+            data, sample_rate = sfRead(file_path)
+            
+        
+        self.m.visualize_sound(data, sample_rate)
     
     
     def on_quit(self):
@@ -269,7 +306,7 @@ class App:
             timer.configure(text=text)
             self.window.after(self.timer_step_ms, self.update_time, timer)
             
-            self.progress_bar.set(0)
+            self.progress_bar.set(self.timer_text/self.song_duration)
     
     
     def export_to_wav(self, file_path: str|None=None):
@@ -486,33 +523,40 @@ class App:
     
     def main(self):
         open_btn = ctk.CTkButton(self.window,
-                             text="open file",
-                             command=self.load_file,
-                             width=80,
-                             corner_radius=self.bcr)
+                                 text="open file",
+                                 command=self.load_file,
+                                 width=80,
+                                 corner_radius=self.bcr)
         open_btn.grid(row=1, column=0, padx=4)
         
         export_btn = ctk.CTkButton(self.window,
-                            text="export",
-                            command=self.export,
-                            width=80,
-                            corner_radius=self.bcr)
-        export_btn.grid(row=1, column=1, padx=4)
+                                   text="export",
+                                   command=self.export,
+                                   width=80,
+                                   corner_radius=self.bcr)
+        export_btn.grid(row=2, column=0, padx=4, pady=8)
         
         play_btn = ctk.CTkButton(self.window,
-                             text="play",
-                             command=self.play_loaded,
-                             width=80,
-                             corner_radius=self.bcr)
-        play_btn.grid(row=1, column=2, padx=4)
+                                 text="play",
+                                 command=self.play_loaded,
+                                 width=80,
+                                 corner_radius=self.bcr)
+        play_btn.place(relx=0.5, rely=0.2, anchor=ctk.CENTER)
+        
+        visualize_btn = ctk.CTkButton(self.window,
+                                     text="visualize",
+                                     command=self.visualize_sound,
+                                     width=80,
+                                     corner_radius=self.bcr)
+        visualize_btn.place(relx=0.9, rely=0.1, anchor=ctk.CENTER)
         
         drag_lab = ctk.CTkLabel(self.window,
                                 text="drag",
-                                width=280,
-                                height=120,
+                                width=400,
+                                height=190,
                                 fg_color=self.COLOR1,
                                 text_color=self.GREY)
-        drag_lab.place(relx=0.5, rely=0.55, anchor=ctk.CENTER)
+        drag_lab.place(relx=0.5, rely=0.6, anchor=ctk.CENTER)
         drag_lab.drop_target_register(DND_FILES)
         drag_lab.dnd_bind("<<Drop>>", self.load_dragged)
 

@@ -2,11 +2,12 @@ import pyaudio
 import numpy as np
 from typing import Callable, Iterable, Literal
 import scipy.io.wavfile as wf
+import matplotlib.pyplot as plt
 
 
 
 # types #
-SoundBuffer = np.ndarray
+SoundBuffer = np.ndarray[np.any, np.dtype[np.float32|np.int16|np.uint8]]
 Wave = Callable[[float, float, float], np.ndarray[np.any, np.dtype]]
 
 
@@ -37,7 +38,6 @@ class Sounds:
         self.dtype = dtype
         
     
-    
     def cache_wave(wave_type:str):
         """returns the cached value if available, otherwise caches the returned wave"""
         def decorator(func):
@@ -54,7 +54,6 @@ class Sounds:
             return wrapper
         return decorator
 
-    
     @cache_wave("sine")
     def sine_wave(self, freq:float, dur:float, vol: float):
         """creates a sine wave based on the given frequency, duration and amplituse or volume
@@ -498,6 +497,32 @@ class Music(Sounds, Export):
                                              rate=sample_rate,
                                              output=True)
         self.play_buffer(data)
+    
+    
+    def visualize_sound(self, wave: SoundBuffer, sample_rate: int) -> None:
+        times = np.linspace(0, wave.size/sample_rate, wave.size)
+        duration = wave.size / sample_rate
+        
+        plt.figure(figsize=(15, 5))
+        plt.plot(times, wave)
+        plt.title('wave:')
+        plt.ylabel('Signal Value')
+        plt.xlabel('Time (s)')
+        plt.xlim(0, duration)
+        plt.show()
+    
+    
+    def show_frequency_spectrum(self, wave: SoundBuffer, sample_rate: int):
+        duration = wave.size / sample_rate
+        
+        plt.figure(figsize=(15, 5))
+        plt.specgram(wave, Fs=sample_rate, vmin=-20, vmax=50)
+        plt.title('wave')
+        plt.ylabel('Frequency (Hz)')
+        plt.xlabel('Time (s)')
+        plt.xlim(0, duration)
+        plt.colorbar()
+        plt.show()
     
     
     # this will close the stream and terminate the audio_object (basicly closes everything)
