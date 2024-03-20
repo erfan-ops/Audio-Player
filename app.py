@@ -119,8 +119,6 @@ class App:
         fformat = splitext(file_path)[1]
         fformat = fformat.removeprefix(".")
         
-        print(f"now playing {file_path}")
-        
         #-- for ".erfan" files --#
         if fformat == "erfan":
             with open(file_path, "rb") as f:

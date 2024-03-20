@@ -1,0 +1,1 @@
+the music library has some basic soundwaves which you can use to create music, and you can modify it and add you own soundswaves as well.
