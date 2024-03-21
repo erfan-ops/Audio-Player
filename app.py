@@ -1,6 +1,7 @@
-import music
-import customtkinter as ctk
+from soundtools import soundtools
 import numpy as np
+import matplotlib.pyplot as plt
+import customtkinter as ctk
 from soundfile import read as sfRead
 from tkinter.filedialog import askopenfilename, asksaveasfilename
 from tkinterdnd2 import TkinterDnD, DND_FILES
@@ -14,7 +15,6 @@ from pydub.playback import play as dubplay
 from icon import daIconFile
 from tempfile import mkstemp
 from pyaudio import Stream
-import matplotlib.pyplot as plt
 
 
 class Tk(ctk.CTk, TkinterDnD.DnDWrapper):
@@ -51,7 +51,7 @@ class App:
         self.window.geometry("480x360")
         self.window.iconbitmap(default=self.ICON_PATH)
         
-        self.m = music.Music()
+        self.m = soundtools.Music()
         self.m.init()
         self.window.protocol("WM_DELETE_WINDOW", self.on_quit)
         
@@ -91,7 +91,7 @@ class App:
         self.window.mainloop()
     
     
-    def visualize_sound(self, wave: music.SoundBuffer, sample_rate: int) -> None:
+    def visualize_sound(self, wave: soundtools.SoundBuffer, sample_rate: int) -> None:
         times = np.linspace(0, wave.size/sample_rate, wave.size)
         duration = wave.size / sample_rate
         

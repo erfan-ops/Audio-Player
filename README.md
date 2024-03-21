@@ -1,7 +1,13 @@
-the music library has some basic sound-waves which you can use to create music, and you can modify it and add you own sound-waves as well.
+the soundtools library has some basic sound-waves which you can use to create music, and you can modify it and add you own sound-waves as well.
 
+install the soundtools library
+```shell
+pip install soundtools==0.1.1
+```
+
+import it in your python file
 ```python
-import music
+from soundtools import soundtools
 ```
 
 to make an executable you can use pyinstaller but you have to include the tkinterdnd2 package
