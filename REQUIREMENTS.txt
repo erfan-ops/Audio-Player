@@ -7,4 +7,4 @@ customtkinter==5.2.2
 soundfile==0.12.1
 tkinterdnd2==0.3.0
 pydub==0.25.1
-soundtools==0.1.1
+soundtools==0.1.2
