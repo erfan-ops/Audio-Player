@@ -1,8 +1,8 @@
 the soundtools library has some basic sound-waves which you can use to create music, and you can modify it and add you own sound-waves as well.
 
-install the soundtools library
+install the libraries
 ```shell
-pip install soundtools==0.1.1
+pip install -r REQUIREMENTS.txt
 ```
 
 import it in your python file
