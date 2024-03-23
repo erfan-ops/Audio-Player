@@ -5,13 +5,14 @@ install the libraries
 pip install -r REQUIREMENTS.txt
 ```
 
-import it in your python file
-```python
-from soundtools import soundtools
+to make an executable you can use pyinstaller, but you have to include the "tkinterdnd2" package.
+```shell
+pip install -U pyinstaller
+pyinstaller --collect-all tkinterdnd2 -F -w -i icon.ico app.py -n 'Audio Player by Erfan ;D'
 ```
 
-to make an executable you can use pyinstaller but you have to include the tkinterdnd2 package
-or just run the setup file
+if got errors run this command instead
 ```shell
-pyinstaller --collect-all tkinterdnd2 -F -w -i icon.ico app.py -n 'Media Player by Erfan ;D'
+pyinstaller --collect-all TkinterDnD2 -F -w -i icon.ico app.py -n 'Audio Player by Erfan ;D'
 ```
+or just run the setup file
