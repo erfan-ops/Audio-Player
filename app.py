@@ -75,9 +75,10 @@ class App:
         self.bcr = 8 # button_corner_radius
         self.export_buttons_pady = 2
         self.temp_wav_file = ""
+        self.image_label = ctk.CTkLabel(self.window, text="test text")
+        self.offset = 8
         
         self.label_at_02 = ctk.CTkLabel(self.window, text="")
-        self.label_at_02.grid(row=0, column=2, columnspan=20)
         
         
         if len(argv) > 1 and exists(argv[1]):
@@ -290,8 +291,8 @@ class App:
             self.loaded_file = file
             self.label_at_02.destroy()
             self.label_at_02 = ctk.CTkLabel(self.window,
-                         text="file has been loaded",
-                         text_color=self.FG_GREEN)
+                                            text="file has been loaded",
+                                            text_color=self.FG_GREEN)
             self.label_at_02.grid(row=0, column=2, columnspan=20)
     
     
@@ -442,6 +443,7 @@ class App:
     
     
     def load_dragged(self, event) -> None:
+        self.image_label.destroy()
         files = event.data.split("} {")
         for file_path in files:
             file_path = file_path.strip("{}")
@@ -454,8 +456,8 @@ class App:
         self.loaded_file = file_path
         self.label_at_02.destroy()
         self.label_at_02 = ctk.CTkLabel(self.window,
-                     text="file has been loaded",
-                     text_color=self.FG_GREEN)
+                                        text="file has been loaded",
+                                        text_color=self.FG_GREEN)
         self.label_at_02.grid(row=0, column=2, columnspan=20)
     
     
@@ -551,6 +553,29 @@ class App:
                                                                         pady=self.export_buttons_pady)
     
     
+    def render_drag_name(self, event):
+        file_name = split(event.data.strip("}{"))[1]
+        self.image_label.destroy()
+        self.image_label = ctk.CTkLabel(self.window,
+                                        text=file_name)
+        x, y = self.window.winfo_pointerxy()
+        self.image_label.place(x=x - self.window.winfo_rootx() + self.offset,
+                               y=y - self.window.winfo_rooty() + self.offset)
+        
+    
+    def show_drag_name(self, event):
+        file_name = split(event.data.strip("}{"))[1]
+        self.label_at_02.destroy()
+        self.label_at_02 = ctk.CTkLabel(self.window,
+                                        text=file_name,
+                                        text_color=self.FG_GREEN)
+        self.label_at_02.grid(row=0, column=2, columnspan=20)
+    
+    
+    def remove_drag_name(self, event):
+        self.image_label.destroy()
+    
+    
     def main(self) -> None:
         open_btn = ctk.CTkButton(self.window,
                                  text="open file",
@@ -588,7 +613,10 @@ class App:
                                 text_color=self.GREY)
         drag_lab.place(relx=0.5, rely=0.6, anchor=ctk.CENTER)
         drag_lab.drop_target_register(DND_FILES)
+        drag_lab.dnd_bind("<<DropEnter>>", self.show_drag_name)
+        drag_lab.dnd_bind("<<DropPosition>>", self.render_drag_name)
         drag_lab.dnd_bind("<<Drop>>", self.load_dragged)
+        drag_lab.dnd_bind("<<DropLeave>>", self.remove_drag_name)
 
 
 
