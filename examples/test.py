@@ -3,7 +3,7 @@ from math import ceil, floor
 import sys
 import os
 sys.path.append(os.path.split(os.path.split(__file__)[0])[0])
-from music import Music
+from soundtools.soundtools import Music
 
 
 
@@ -26,10 +26,12 @@ def staccato(wave: np.ndarray, dur: float, play_time: float=0.75):
     resting = (1-play_time)*dur
     return np.append(wave[0:floor(playing)], m.generate_note_buffer(0, m.sine_wave, resting))
 
-# these are enharmonic notes so their frequencys are the same in any equal temperament
+# these are enharmonic notes so their frequencys are the same in 12 equal temperament
 m._NOTES["eb5"] = m._NOTES["d#5"]
 
-# you can change the wave types
+# _____________________________________________________________________ #
+# -- you can change the wave types and create different combinations -- #
+# _____________________________________________________________________ #
 chord_wave = m.sawtooth_wave
 note_wave = m.square_wave
 
