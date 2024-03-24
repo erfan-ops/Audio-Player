@@ -174,7 +174,7 @@ class App:
         #-- other files such as mp3, ogg, wav, aiff, flac --#
         else:
             data, sample_rate = sfRead(file_path)
-            self.song_duration = data.size/sample_rate
+            self.song_duration = data.size/sample_rate/data.ndim
             
             duration = ctk.CTkLabel(self.window,
                                     text=round(self.song_duration, 2))
@@ -241,6 +241,8 @@ class App:
         
         else:
             data, sample_rate = sfRead(file_path)
+            if data.ndim > 1:
+                data = data.reshape((2, data.size//data.ndim))[0].resize()
         
         
         self.visualize_sound(data, sample_rate)

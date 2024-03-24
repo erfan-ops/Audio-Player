@@ -3,7 +3,7 @@ from math import ceil, floor
 import sys
 import os
 sys.path.append(os.path.split(os.path.split(__file__)[0])[0])
-from soundtools.soundtools import Music
+from soundtools.soundtools import Music, SoundBuffer
 
 
 
@@ -13,7 +13,7 @@ m.init()
 
 
 # halves the wave duration
-def half(wave: np.ndarray):
+def half(wave: SoundBuffer):
     return wave[0:len(wave)//2]
 
 # doubles the wave duration
