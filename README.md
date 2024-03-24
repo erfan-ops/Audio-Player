@@ -1,9 +1,16 @@
+<h1 align="left">● SoundTools library</h1>
+
 the soundtools library has some basic sound-waves which you can use to create music, and you can modify it and add you own sound-waves as well.
 
-install the libraries
+
+<h3 align="left">● installing the libraries</h3>
+
 ```shell
 pip install -r REQUIREMENTS.txt
 ```
+
+<h3 align="left">● creating an executable</h3>
+
 
 to make an executable you can use pyinstaller, but you have to include the "tkinterdnd2" package.
 ```shell
