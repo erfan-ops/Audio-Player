@@ -1,10 +1,11 @@
-from soundtools import soundtools
+from soundtools.soundtools import Music, SoundBuffer
 import numpy as np
 import matplotlib.pyplot as plt
 import customtkinter as ctk
 from soundfile import read as sfRead
 from tkinter.filedialog import askopenfilename, asksaveasfilename
-from tkinterdnd2 import TkinterDnD, DND_FILES
+from tkinterdnd2 import DND_FILES
+from tkinterdnd2.TkinterDnD import _require, DnDWrapper
 from sys import exit as sysExit, argv
 from os import remove
 from os.path import exists, split, splitext
@@ -17,10 +18,10 @@ from tempfile import mkstemp
 from pyaudio import Stream
 
 
-class Tk(ctk.CTk, TkinterDnD.DnDWrapper):
+class Tk(ctk.CTk, DnDWrapper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.TkdndVersion = TkinterDnD._require(self)
+        self.TkdndVersion = _require(self)
 
 
 class App:
@@ -51,7 +52,7 @@ class App:
         self.window.geometry("480x360")
         self.window.iconbitmap(default=self.ICON_PATH)
         
-        self.m = soundtools.Music()
+        self.m = Music()
         self.m.init()
         self.window.protocol("WM_DELETE_WINDOW", self.on_quit)
         
@@ -92,7 +93,7 @@ class App:
         self.window.mainloop()
     
     
-    def visualize_sound(self, wave: soundtools.SoundBuffer, sample_rate: int) -> None:
+    def visualize_sound(self, wave: SoundBuffer, sample_rate: int) -> None:
         times = np.linspace(0, wave.size/sample_rate, wave.size)
         duration = wave.size / sample_rate
         
@@ -620,5 +621,5 @@ class App:
 
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = App()
