@@ -1,8 +1,5 @@
 import numpy as np
 from math import ceil, floor
-import sys
-import os
-sys.path.append(os.path.split(os.path.split(__file__)[0])[0])
 from soundtools.soundtools import Music, SoundBuffer
 
 

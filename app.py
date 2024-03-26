@@ -294,7 +294,7 @@ class App:
             self.label_at_02 = ctk.CTkLabel(self.window,
                                             text="file has been loaded",
                                             text_color=self.FG_GREEN)
-            self.label_at_02.grid(row=0, column=2, columnspan=20)
+            self.label_at_02.place(relx=0.5, y=10, anchor="center")
     
     
     def get_sampwidth_from_number(self, dtype: int) -> str:
@@ -412,7 +412,7 @@ class App:
             codec = "aiff"
         
         if direc:
-            direc = direc+"/"
+            direc += "/"
         
         if file_format == "erfan":
             wav_file_full_name = direc+file_name+".wav"
@@ -425,7 +425,6 @@ class App:
         
         
         if codec in ["adts", "mp3", "aac"]:
-            
             AudioSegment.from_file(file_path, file_format).export(file_save_path,
                                                                   format=fformat,
                                                                   bitrate=str(bitrate)+"k")
@@ -437,7 +436,7 @@ class App:
         self.label_at_02 = ctk.CTkLabel(self.window,
                      text="successfully exported",
                      text_color=self.FG_GREEN)
-        self.label_at_02.grid(row=0, column=2, columnspan=20)
+        self.label_at_02.place(relx=0.5, y=10, anchor="center")
         
         if remove_temp_file:
             remove(wav_file_full_name)
@@ -459,7 +458,7 @@ class App:
         self.label_at_02 = ctk.CTkLabel(self.window,
                                         text="file has been loaded",
                                         text_color=self.FG_GREEN)
-        self.label_at_02.grid(row=0, column=2, columnspan=20)
+        self.label_at_02.place(relx=0.5, y=10, anchor="center")
     
     
     def on_quit_TopLevel(self):
@@ -570,11 +569,12 @@ class App:
         self.label_at_02 = ctk.CTkLabel(self.window,
                                         text=file_name,
                                         text_color=self.FG_GREEN)
-        self.label_at_02.grid(row=0, column=2, columnspan=20)
+        self.label_at_02.place(relx=0.5, y=10, anchor="center")
     
     
     def remove_drag_name(self, event):
         self.image_label.destroy()
+        self.label_at_02.destroy()
     
     
     def main(self) -> None:
