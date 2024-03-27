@@ -8,7 +8,7 @@ from tkinterdnd2 import DND_FILES
 from tkinterdnd2.TkinterDnD import _require, DnDWrapper
 from sys import exit as sysExit, argv
 from os import remove
-from os.path import exists, split, splitext
+from os.path import exists, split, splitext, basename
 from threading import Thread
 from time import perf_counter
 from pydub.audio_segment import AudioSegment
@@ -16,6 +16,7 @@ from pydub.playback import play as dubplay
 from icon import daIconFile
 from tempfile import mkstemp
 from pyaudio import Stream
+from subprocess import check_output, run
 
 
 class Tk(ctk.CTk, DnDWrapper):
@@ -26,7 +27,12 @@ class Tk(ctk.CTk, DnDWrapper):
 
 class App:
     def __init__(self) -> None:
-        _, self.ICON_PATH = mkstemp()
+        if not b"\n.erfan=" in check_output("assoc", shell=True):
+            APP_NAME = splitext(basename(__file__))[0]
+            run(f"assoc .erfan={APP_NAME}")
+
+        
+        self.ICON_PATH = mkstemp()[1]
         with open(self.ICON_PATH, "wb") as self.iconFile:
             self.iconFile.write(daIconFile)
         
