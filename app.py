@@ -1,14 +1,14 @@
-from soundtools.soundtools import Music, SoundBuffer
+from soundtools import Music, SoundBuffer
 import numpy as np
 import matplotlib.pyplot as plt
 import customtkinter as ctk
-from soundfile import read as sfRead
 from tkinter.filedialog import askopenfilename, asksaveasfilename
 from tkinterdnd2 import DND_FILES
 from tkinterdnd2.TkinterDnD import _require, DnDWrapper
-from sys import exit as sysExit, argv
+from soundfile import read as sfRead
+from sys import exit as sysExit, argv, platform
 from os import remove
-from os.path import exists, split, splitext, basename
+from os.path import exists, split, splitext
 from threading import Thread
 from time import perf_counter
 from pydub.audio_segment import AudioSegment
@@ -27,9 +27,9 @@ class Tk(ctk.CTk, DnDWrapper):
 
 class App:
     def __init__(self) -> None:
-        if not b"\n.erfan=" in check_output("assoc", shell=True):
-            APP_NAME = splitext(basename(__file__))[0]
-            run(f"assoc .erfan={APP_NAME}")
+        if platform == "win32":
+            if not b"\n.erfan=" in check_output("assoc", shell=True):
+                run(f"assoc .erfan={__file__}")
 
         
         self.ICON_PATH = mkstemp()[1]
