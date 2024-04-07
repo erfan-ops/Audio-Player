@@ -429,8 +429,16 @@ class App:
             file_format = "wav"
             file_path = direc+file_name+"."+file_format
         
+        if fformat == "erfan":
+            wav_file_full_name = direc+file_name+".wav"
+            if not exists(wav_file_full_name):
+                remove_temp_file = True
+            
+            AudioSegment.from_file(file_path, file_format).export(wav_file_full_name,
+                                                                  format="wav")
+            self.m.wav_to_erfan(wav_file_full_name)
         
-        if codec in ["adts", "mp3", "aac"]:
+        elif codec in ["adts", "mp3", "aac"]:
             AudioSegment.from_file(file_path, file_format).export(file_save_path,
                                                                   format=fformat,
                                                                   bitrate=str(bitrate)+"k")
