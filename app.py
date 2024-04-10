@@ -223,6 +223,9 @@ class App:
     def visualize_sound_file(self) -> None:
         if not self.loaded_file:
             self.load_file()
+        if not self.loaded_file:
+            return
+        
         file_path = self.loaded_file
         
         fformat = splitext(file_path)[1]
