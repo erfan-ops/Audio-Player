@@ -253,7 +253,7 @@ class App:
         else:
             data, sample_rate = sfRead(file_path)
             if data.ndim > 1:
-                data = data.reshape((2, data.size//data.ndim))[0].resize()
+                data = data.reshape(2, data.size//data.ndim)[0]
         
         
         self.visualize_sound(data, sample_rate)
