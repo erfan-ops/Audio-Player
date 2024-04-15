@@ -379,6 +379,7 @@ class App:
         file_format = file_format[1:]
         
         file_save_path = asksaveasfilename(title="save to:",
+                                           initialdir=direc,
                                            initialfile=file_name,
                                            defaultextension=f".{fformat}",
                                            filetypes=[("sound files", ".erfan"),
@@ -515,22 +516,22 @@ class App:
                       text="mp3",
                       corner_radius=self.bcr,
                       command=lambda: self.save_as(fformat="mp3")).grid(row=2,
-                                                                       column=0,
-                                                                       pady=self.export_buttons_pady)
+                                                                        column=0,
+                                                                        pady=self.export_buttons_pady)
         
         ctk.CTkButton(self.export_window,
                       text="aiff",
                       corner_radius=self.bcr,
                       command=lambda: self.save_as(fformat="aiff")).grid(row=3,
-                                                                        column=0,
-                                                                        pady=self.export_buttons_pady)
+                                                                         column=0,
+                                                                         pady=self.export_buttons_pady)
         
         ctk.CTkButton(self.export_window,
                       text="aifc",
                       corner_radius=self.bcr,
                       command=lambda: self.save_as(fformat="aifc")).grid(row=4,
-                                                                        column=0,
-                                                                        pady=self.export_buttons_pady)
+                                                                         column=0,
+                                                                         pady=self.export_buttons_pady)
         
         ctk.CTkButton(self.export_window,
                       text="aif",
@@ -542,13 +543,13 @@ class App:
         ctk.CTkButton(self.export_window,
                       text="flac",
                       command=lambda: self.save_as(fformat="flac")).grid(row=6,
-                                                                        column=0,
-                                                                        pady=self.export_buttons_pady)
+                                                                         column=0,
+                                                                         pady=self.export_buttons_pady)
         
         ctk.CTkButton(self.export_window,
                       text="ogg",
                       command=lambda: self.save_as(fformat="ogg")).grid(row=7,
-                                                                       column=0,
+                                                                        column=0,
                                                                         pady=self.export_buttons_pady)
         
         ctk.CTkButton(self.export_window,
