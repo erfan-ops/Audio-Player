@@ -149,9 +149,12 @@ class App:
                 n_channels = int.from_bytes(data[6:8], "little")
                 data = np.frombuffer(data[8:], dtype=strdtype)
                 self.song_duration = data.size/sample_rate
+                minuts = int(self.song_duration/60)
+                seconds = self.song_duration - minuts*60
+                timer_text = f"{minuts}:{round(seconds, 2)}"
                 
                 duration = ctk.CTkLabel(self.window,
-                                        text=round(self.song_duration, 2))
+                                        text=timer_text)
                 duration.grid(row=0, column=1)
                 
                 self.m.stream.stop_stream()
@@ -337,7 +340,10 @@ class App:
     def update_time(self, timer: ctk.CTkLabel) -> None:
         if self.song_duration and self.timer_text < self.song_duration:
             self.timer_text = perf_counter() - self.start
-            text = ("%.2f" % self.timer_text)
+            
+            minuts = int(self.timer_text/60)
+            seconds = self.timer_text - minuts*60
+            text = "%d:%.2f" % (minuts, seconds)
             timer.configure(text=text)
             self.window.after(self.timer_step_ms, self.update_time, timer)
             
