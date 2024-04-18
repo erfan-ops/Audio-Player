@@ -687,6 +687,10 @@ class App:
         self.recording: bytes = bytes()
         
         while not self.stop_record:
+            if is_pressed("space"):
+                self.stop_record_func()
+                return
+            
             data = self.m.input_stream.read(self.m.input_chunk)
             self.recording += data
         
