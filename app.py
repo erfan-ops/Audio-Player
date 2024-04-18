@@ -17,6 +17,7 @@ from icon import daIconFile
 from tempfile import mkstemp
 from pyaudio import Stream
 from subprocess import check_output, run
+from keyboard import is_pressed
 
 
 class Tk(ctk.CTk, DnDWrapper):
@@ -70,6 +71,10 @@ class App:
         self.timer = ctk.CTkLabel(self.window,
                                   text=self.timer_text)
         self.timer.grid(row=0, column=0)
+        
+        self.stop_record = False
+        self.recording: bytes = bytes()
+        self.loaded_buffer: SoundBuffer = np.array([])
         
         self.loaded_file: str = ""
         
@@ -125,7 +130,11 @@ class App:
     
     
     def play_loaded(self) -> None:
-        if self.loaded_file:
+        if not self.loaded_buffer.all():
+            y = Thread(target=self.m.play_buffer, args=(self.loaded_buffer,))
+            y.start()
+        
+        elif self.loaded_file:
             y = Thread(target=self.play, args=(self.loaded_file,))
             y.start()
         
@@ -307,6 +316,7 @@ class App:
                                             text="file has been loaded",
                                             text_color=self.FG_GREEN)
             self.label_at_02.place(relx=0.5, y=10, anchor="center")
+            self.loaded_buffer = np.array([])
     
     
     def get_sampwidth_from_number(self, dtype: int) -> str:
@@ -372,6 +382,66 @@ class App:
     
     def save_as(self, file_path: str|None=None, fformat: str="wav", bitrate: int=320) -> None:
         remove_temp_file = False
+        
+        if not self.loaded_buffer.all():
+            file_save_path = asksaveasfilename(title="save to:",
+                                               initialfile="output",
+                                               defaultextension=fformat,
+                                               filetypes=[("sound files", ".erfan"),
+                                                          ("sound files", ".mp3"),
+                                                          ("sound files", ".wav"),
+                                                          ("sound files", ".aiff"),
+                                                          ("sound files", ".aifc"),
+                                                          ("sound files", ".aif"),
+                                                          ("sound files", ".flac"),
+                                                          ("sound files", ".ogg"),
+                                                          ("sound files", ".m4a"),
+                                                          ("sound files", ".aac"),
+                                                          ("sound files", ".wma"),
+                                                          ("erfan", ".erfan"),
+                                                          ("mp3", ".mp3"),
+                                                          ("wav", ".wav"),
+                                                          ("aiff", ".aiff"),
+                                                          ("aifc", ".aifc"),
+                                                          ("aif", ".aif"),
+                                                          ("wma", ".wma"),
+                                                          ("flac", ".flac"),
+                                                          ("ogg", ".ogg"),
+                                                          ("m4a", ".m4a"),
+                                                          ("aac", ".aac"),
+                                                          ("wma", ".wma"),
+                                                          ("All Files", ".*")])
+            if not file_save_path:
+                return
+            
+            fformat = splitext(file_save_path)[1]
+            fformat = fformat.removeprefix(".")
+            
+            codec = fformat
+            
+            if fformat in ["aac", "m4a", "wma"]:
+                codec = "adts"
+            
+            if fformat in ["aiff", "aifc", "aif"]:
+                codec = "aiff"
+            
+            self.m.export_to_wav(file_save_path, self.loaded_buffer, self.m.sample_rate, self.m.input_dtype)
+            
+            if fformat != "wav":
+                file_export_path = file_save_path[:-4]+fformat
+                if codec == "adts":
+                    AudioSegment.from_file(file_save_path, "wav").export(file_export_path,
+                                                                         format=codec,
+                                                                         bitrate=str(bitrate)+"k")
+                else:
+                    AudioSegment.from_file(file_path, "wav").export(file_export_path,
+                                                                    format=codec)
+                
+                remove(file_path)
+            
+            return
+        
+        
         if not file_path:
             if not self.loaded_file:
                 self.load_file()
@@ -382,12 +452,19 @@ class App:
         
         direc, file_name = split(file_path)
         file_name, file_format = splitext(file_name)
-        file_format = file_format[1:]
+        file_format = file_format.removeprefix(".")
+        
+        if file_format == fformat:
+            return
+        
+        if direc:
+            direc += "/"
+        
         
         file_save_path = asksaveasfilename(title="save to:",
                                            initialdir=direc,
                                            initialfile=file_name,
-                                           defaultextension=f".{fformat}",
+                                           defaultextension=fformat,
                                            filetypes=[("sound files", ".erfan"),
                                                       ("sound files", ".mp3"),
                                                       ("sound files", ".wav"),
@@ -412,10 +489,9 @@ class App:
                                                       ("aac", ".aac"),
                                                       ("wma", ".wma"),
                                                       ("All Files", ".*")])
-        
         if not file_save_path:
             return
-        
+            
         fformat = splitext(file_save_path)[1]
         fformat = fformat.removeprefix(".")
         
@@ -427,12 +503,10 @@ class App:
         if fformat in ["aiff", "aifc", "aif"]:
             codec = "aiff"
         
-        if direc:
-            direc += "/"
         
         if file_format == "erfan":
             wav_file_full_name = direc+file_name+".wav"
-            if not exists(wav_file_full_name):
+            if not exists(wav_file_full_name) and fformat != "wav":
                 remove_temp_file = True
             
             self.export_to_wav(file_path)
@@ -448,18 +522,18 @@ class App:
                                                                   format="wav")
             self.m.wav_to_erfan(wav_file_full_name)
         
-        elif codec in ["adts", "mp3", "aac"]:
+        elif codec == "adts":
             AudioSegment.from_file(file_path, file_format).export(file_save_path,
-                                                                  format=fformat,
+                                                                  format=codec,
                                                                   bitrate=str(bitrate)+"k")
         else:
             AudioSegment.from_file(file_path, file_format).export(file_save_path,
-                                                                  format=fformat)
+                                                                  format=codec)
         
         self.label_at_02.destroy()
         self.label_at_02 = ctk.CTkLabel(self.window,
-                     text="successfully exported",
-                     text_color=self.FG_GREEN)
+                                        text="successfully exported",
+                                        text_color=self.FG_GREEN)
         self.label_at_02.place(relx=0.5, y=10, anchor="center")
         
         if remove_temp_file:
@@ -483,9 +557,10 @@ class App:
                                         text="file has been loaded",
                                         text_color=self.FG_GREEN)
         self.label_at_02.place(relx=0.5, y=10, anchor="center")
+        self.loaded_buffer = np.array([])
     
     
-    def on_quit_TopLevel(self):
+    def on_quit_TopLevel(self) -> None:
         self.export_window.destroy()
         del self.export_window
     
@@ -502,7 +577,7 @@ class App:
         
         self.export_window.title("Export to:")
         self.export_window.resizable(False, False)
-        self.export_window.geometry("220x360")
+        self.export_window.geometry("220x390")
         
         self.export_window.protocol("WM_DELETE_WINDOW", self.on_quit_TopLevel)
         
@@ -511,68 +586,75 @@ class App:
                      text="Export to:").grid(row=0, column=0)
         
         ctk.CTkButton(self.export_window,
+                      text="erfan",
+                      corner_radius=self.bcr,
+                      command=lambda: self.save_as(fformat="erfan")).grid(row=1,
+                                                                          column=0,
+                                                                          pady=self.export_buttons_pady,
+                                                                          padx=30)
+        
+        ctk.CTkButton(self.export_window,
                       text="wav",
                       corner_radius=self.bcr,
-                      command=lambda: self.save_as()).grid(row=1,
+                      command=lambda: self.save_as()).grid(row=2,
                                                            column=0,
-                                                           pady=self.export_buttons_pady,
-                                                           padx=30)
+                                                           pady=self.export_buttons_pady,)
         
         ctk.CTkButton(self.export_window,
                       text="mp3",
                       corner_radius=self.bcr,
-                      command=lambda: self.save_as(fformat="mp3")).grid(row=2,
+                      command=lambda: self.save_as(fformat="mp3")).grid(row=3,
                                                                         column=0,
                                                                         pady=self.export_buttons_pady)
         
         ctk.CTkButton(self.export_window,
                       text="aiff",
                       corner_radius=self.bcr,
-                      command=lambda: self.save_as(fformat="aiff")).grid(row=3,
+                      command=lambda: self.save_as(fformat="aiff")).grid(row=4,
                                                                          column=0,
                                                                          pady=self.export_buttons_pady)
         
         ctk.CTkButton(self.export_window,
                       text="aifc",
                       corner_radius=self.bcr,
-                      command=lambda: self.save_as(fformat="aifc")).grid(row=4,
+                      command=lambda: self.save_as(fformat="aifc")).grid(row=5,
                                                                          column=0,
                                                                          pady=self.export_buttons_pady)
         
         ctk.CTkButton(self.export_window,
                       text="aif",
                       corner_radius=self.bcr,
-                      command=lambda: self.save_as(fformat="aif")).grid(row=5,
+                      command=lambda: self.save_as(fformat="aif")).grid(row=6,
                                                                         column=0,
                                                                         pady=self.export_buttons_pady)
         
         ctk.CTkButton(self.export_window,
                       text="flac",
-                      command=lambda: self.save_as(fformat="flac")).grid(row=6,
+                      command=lambda: self.save_as(fformat="flac")).grid(row=7,
                                                                          column=0,
                                                                          pady=self.export_buttons_pady)
         
         ctk.CTkButton(self.export_window,
                       text="ogg",
-                      command=lambda: self.save_as(fformat="ogg")).grid(row=7,
+                      command=lambda: self.save_as(fformat="ogg")).grid(row=8,
                                                                         column=0,
                                                                         pady=self.export_buttons_pady)
         
         ctk.CTkButton(self.export_window,
                       text="m4a",
-                      command=lambda: self.save_as(fformat="m4a")).grid(row=8,
+                      command=lambda: self.save_as(fformat="m4a")).grid(row=9,
                                                                         column=0,
                                                                         pady=self.export_buttons_pady)
         
         ctk.CTkButton(self.export_window,
                       text="aac",
-                      command=lambda: self.save_as(fformat="aac")).grid(row=9,
+                      command=lambda: self.save_as(fformat="aac")).grid(row=10,
                                                                         column=0,
                                                                         pady=self.export_buttons_pady)
         
         ctk.CTkButton(self.export_window,
                       text="wma",
-                      command=lambda: self.save_as(fformat="wma")).grid(row=10,
+                      command=lambda: self.save_as(fformat="wma")).grid(row=11,
                                                                         column=0,
                                                                         pady=self.export_buttons_pady)
     
@@ -601,6 +683,51 @@ class App:
         self.label_at_02.destroy()
     
     
+    def record(self) -> bytes:
+        self.recording: bytes = bytes()
+        
+        while not self.stop_record:
+            data = self.m.input_stream.read(self.m.input_chunk)
+            self.recording += data
+        
+        self.m.input_stream.stop_stream()
+    
+    
+    def stop_record_func(self) -> None:
+        self.stop_record = True
+        
+        self.record_stop_btn.destroy()
+        
+        self.record_btn = ctk.CTkButton(self.window,
+                                        text="record",
+                                        command=self.record_mic,
+                                        width=80,
+                                        corner_radius=self.bcr)
+        self.record_btn.place(relx=0.5, rely=0.1, anchor=ctk.CENTER)
+        
+        self.label_at_02.destroy()
+        self.label_at_02 = ctk.CTkLabel(self.window,
+                                        text="sound loaded",
+                                        text_color=self.FG_GREEN)
+        self.label_at_02.grid(row=0, column=2)
+        
+        self.loaded_buffer = np.frombuffer(self.recording, self.m.input_dtype)
+    
+    
+    def record_mic(self):
+        self.record_btn.destroy()
+        
+        self.record_stop_btn = ctk.CTkButton(self.window,
+                                             text="stop",
+                                             command=self.stop_record_func,
+                                             width=80,
+                                             corner_radius=self.bcr)
+        self.record_stop_btn.place(relx=0.5, rely=0.1, anchor=ctk.CENTER)
+        
+        x = Thread(target=self.record)
+        x.start()
+    
+    
     def main(self) -> None:
         open_btn = ctk.CTkButton(self.window,
                                  text="open file",
@@ -622,6 +749,13 @@ class App:
                                  width=80,
                                  corner_radius=self.bcr)
         play_btn.place(relx=0.5, rely=0.2, anchor=ctk.CENTER)
+        
+        self.record_btn = ctk.CTkButton(self.window,
+                                        text="record",
+                                        command=self.record_mic,
+                                        width=80,
+                                        corner_radius=self.bcr)
+        self.record_btn.place(relx=0.5, rely=0.1, anchor=ctk.CENTER)
         
         visualize_btn = ctk.CTkButton(self.window,
                                      text="visualize",
