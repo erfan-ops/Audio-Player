@@ -70,7 +70,7 @@ class App:
         
         self.timer = ctk.CTkLabel(self.window,
                                   text=self.timer_text)
-        self.timer.grid(row=0, column=0)
+        self.timer.place(relx=0.08, rely=0.86, anchor="center")
         
         self.stop_record = False
         self.recording: bytes = bytes()
@@ -164,7 +164,7 @@ class App:
                 
                 duration = ctk.CTkLabel(self.window,
                                         text=timer_text)
-                duration.grid(row=0, column=1)
+                duration.place(relx=0.9, rely=0.86, anchor="center")
                 
                 self.m.stream.stop_stream()
                 self.m.stream.close()
@@ -376,71 +376,91 @@ class App:
             dtype = self.get_sampwidth_from_number(dtype)
             data = np.frombuffer(data[8:], dtype=dtype)
         
-        file_path = file_path.removesuffix(".erfan")
+        file_path = file_path.removesuffix(".erfan") + ".wav"
         self.m.export_to_wav(file_path, data, sample_rate, dtype)
-        
     
-    def save_as(self, file_path: str|None=None, fformat: str="wav", bitrate: int=320) -> None:
-        remove_temp_file = False
-        
-        if not self.loaded_buffer.all():
-            file_save_path = asksaveasfilename(title="save to:",
-                                               initialfile="output",
-                                               defaultextension=fformat,
-                                               filetypes=[("sound files", ".erfan"),
-                                                          ("sound files", ".mp3"),
-                                                          ("sound files", ".wav"),
-                                                          ("sound files", ".aiff"),
-                                                          ("sound files", ".aifc"),
-                                                          ("sound files", ".aif"),
-                                                          ("sound files", ".flac"),
-                                                          ("sound files", ".ogg"),
-                                                          ("sound files", ".m4a"),
-                                                          ("sound files", ".aac"),
-                                                          ("sound files", ".wma"),
-                                                          ("erfan", ".erfan"),
-                                                          ("mp3", ".mp3"),
-                                                          ("wav", ".wav"),
-                                                          ("aiff", ".aiff"),
-                                                          ("aifc", ".aifc"),
-                                                          ("aif", ".aif"),
-                                                          ("wma", ".wma"),
-                                                          ("flac", ".flac"),
-                                                          ("ogg", ".ogg"),
-                                                          ("m4a", ".m4a"),
-                                                          ("aac", ".aac"),
-                                                          ("wma", ".wma"),
-                                                          ("All Files", ".*")])
-            if not file_save_path:
-                return
-            
-            fformat = splitext(file_save_path)[1]
-            fformat = fformat.removeprefix(".")
-            
-            codec = fformat
-            
-            if fformat in ["aac", "m4a", "wma"]:
-                codec = "adts"
-            
-            if fformat in ["aiff", "aifc", "aif"]:
-                codec = "aiff"
-            
-            self.m.export_to_wav(file_save_path, self.loaded_buffer, self.m.sample_rate, self.m.input_dtype)
-            
-            if fformat != "wav":
-                file_export_path = file_save_path[:-4]+fformat
-                if codec == "adts":
-                    AudioSegment.from_file(file_save_path, "wav").export(file_export_path,
-                                                                         format=codec,
-                                                                         bitrate=str(bitrate)+"k")
-                else:
-                    AudioSegment.from_file(file_path, "wav").export(file_export_path,
-                                                                    format=codec)
-                
-                remove(file_path)
-            
+    
+    def save_recording(self, fformat: str="wav", bitrate: int=320) -> None:
+        file_save_path = asksaveasfilename(title="save to:",
+                                            initialfile="output",
+                                            defaultextension=fformat,
+                                            filetypes=[("sound files", ".erfan"),
+                                                        ("sound files", ".mp3"),
+                                                        ("sound files", ".wav"),
+                                                        ("sound files", ".aiff"),
+                                                        ("sound files", ".aifc"),
+                                                        ("sound files", ".aif"),
+                                                        ("sound files", ".flac"),
+                                                        ("sound files", ".ogg"),
+                                                        ("sound files", ".m4a"),
+                                                        ("sound files", ".aac"),
+                                                        ("sound files", ".wma"),
+                                                        ("erfan", ".erfan"),
+                                                        ("mp3", ".mp3"),
+                                                        ("wav", ".wav"),
+                                                        ("aiff", ".aiff"),
+                                                        ("aifc", ".aifc"),
+                                                        ("aif", ".aif"),
+                                                        ("wma", ".wma"),
+                                                        ("flac", ".flac"),
+                                                        ("ogg", ".ogg"),
+                                                        ("m4a", ".m4a"),
+                                                        ("aac", ".aac"),
+                                                        ("wma", ".wma"),
+                                                        ("All Files", ".*")])
+        if not file_save_path:
             return
         
+        file_save_name, fformat = splitext(file_save_path)
+        fformat = fformat.removeprefix(".")
+        
+        if fformat == "erfan":
+            self.m.export_to_erfan(file_save_path,
+                                   self.loaded_buffer,
+                                   self.m.input_rate,
+                                   self.m.input_dtype,
+                                   self.loaded_buffer.ndim)
+            return
+        
+        codec = fformat
+        
+        if fformat in ["aac", "m4a", "wma"]:
+            codec = "adts"
+        
+        elif fformat in ["aiff", "aifc", "aif"]:
+            codec = "aiff"
+        
+        file_save_wav = f"{file_save_name}.wav"
+        remove_temp_file = False
+        if not exists(file_save_wav):
+            remove_temp_file = True
+        
+        self.m.export_to_wav(file_save_wav, self.loaded_buffer, self.m.input_rate, self.m.input_dtype)
+        
+        if fformat != "wav":
+            file_save_name = splitext(file_save_path)[0]
+            file_export_path = f"{file_save_name}.{fformat}"
+            
+            if codec in ["adts", "mp3"]:
+                AudioSegment.from_file(file_save_wav, "wav").export(file_export_path,
+                                                                     format=codec,
+                                                                     bitrate=str(bitrate)+"k")
+            else:
+                AudioSegment.from_file(file_save_wav, "wav").export(file_export_path,
+                                                                     format=codec)
+            
+            if remove_temp_file:
+                remove(file_save_wav)
+
+        self.label_at_02.destroy()
+        self.label_at_02 = ctk.CTkLabel(self.window,
+                                        text="successfully exported",
+                                        text_color=self.FG_GREEN)
+        self.label_at_02.place(relx=0.5, y=10, anchor="center")
+    
+    
+    def save_file(self, file_path: str|None=None, fformat: str="wav", bitrate: int=320) -> None:
+        remove_temp_file = False
         
         if not file_path:
             if not self.loaded_file:
@@ -491,7 +511,7 @@ class App:
                                                       ("All Files", ".*")])
         if not file_save_path:
             return
-            
+        
         fformat = splitext(file_save_path)[1]
         fformat = fformat.removeprefix(".")
         
@@ -500,7 +520,7 @@ class App:
         if fformat in ["aac", "m4a", "wma"]:
             codec = "adts"
         
-        if fformat in ["aiff", "aifc", "aif"]:
+        elif fformat in ["aiff", "aifc", "aif"]:
             codec = "aiff"
         
         
@@ -522,7 +542,7 @@ class App:
                                                                   format="wav")
             self.m.wav_to_erfan(wav_file_full_name)
         
-        elif codec == "adts":
+        elif codec in ["adts", "mp3"]:
             AudioSegment.from_file(file_path, file_format).export(file_save_path,
                                                                   format=codec,
                                                                   bitrate=str(bitrate)+"k")
@@ -539,6 +559,14 @@ class App:
         if remove_temp_file:
             remove(wav_file_full_name)
     
+    
+    def save_as(self, file_path: str|None=None, fformat: str="wav", bitrate: int=320) -> None:
+        if not self.loaded_buffer.all():
+            self.save_recording(fformat, bitrate)
+        
+        else:
+            self.save_file(file_path, fformat, bitrate)
+        
     
     def load_dragged(self, event) -> None:
         self.image_label.destroy()
@@ -707,7 +735,7 @@ class App:
                                         command=self.record_mic,
                                         width=80,
                                         corner_radius=self.bcr)
-        self.record_btn.place(relx=0.5, rely=0.1, anchor=ctk.CENTER)
+        self.record_btn.place(relx=0.5, rely=0.12, anchor=ctk.CENTER)
         
         self.label_at_02.destroy()
         self.label_at_02 = ctk.CTkLabel(self.window,
@@ -726,7 +754,7 @@ class App:
                                              command=self.stop_record_func,
                                              width=80,
                                              corner_radius=self.bcr)
-        self.record_stop_btn.place(relx=0.5, rely=0.1, anchor=ctk.CENTER)
+        self.record_stop_btn.place(relx=0.5, rely=0.12, anchor=ctk.CENTER)
         
         x = Thread(target=self.record)
         x.start()
@@ -738,28 +766,28 @@ class App:
                                  command=self.load_file,
                                  width=80,
                                  corner_radius=self.bcr)
-        open_btn.grid(row=1, column=0, padx=4)
+        open_btn.place(relx=0.1, rely=0.12, anchor="center")
         
         export_btn = ctk.CTkButton(self.window,
                                    text="export",
                                    command=self.export,
                                    width=80,
                                    corner_radius=self.bcr)
-        export_btn.grid(row=2, column=0, padx=4, pady=8)
+        export_btn.place(relx=0.1, rely=0.22, anchor="center")
         
         play_btn = ctk.CTkButton(self.window,
                                  text="play",
                                  command=self.play_loaded,
                                  width=80,
                                  corner_radius=self.bcr)
-        play_btn.place(relx=0.5, rely=0.2, anchor=ctk.CENTER)
+        play_btn.place(relx=0.5, rely=0.22, anchor=ctk.CENTER)
         
         self.record_btn = ctk.CTkButton(self.window,
                                         text="record",
                                         command=self.record_mic,
                                         width=80,
                                         corner_radius=self.bcr)
-        self.record_btn.place(relx=0.5, rely=0.1, anchor=ctk.CENTER)
+        self.record_btn.place(relx=0.5, rely=0.12, anchor=ctk.CENTER)
         
         visualize_btn = ctk.CTkButton(self.window,
                                      text="visualize",
@@ -774,7 +802,7 @@ class App:
                                 height=190,
                                 fg_color=self.COLOR1,
                                 text_color=self.GREY)
-        drag_lab.place(relx=0.5, rely=0.6, anchor=ctk.CENTER)
+        drag_lab.place(relx=0.5, rely=0.55, anchor=ctk.CENTER)
         drag_lab.drop_target_register(DND_FILES)
         drag_lab.dnd_bind("<<DropEnter>>", self.show_drag_name)
         drag_lab.dnd_bind("<<DropPosition>>", self.render_drag_name)
