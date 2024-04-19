@@ -11,8 +11,7 @@ pip install -r REQUIREMENTS.txt
 
 <h3 align="left">● creating an executable</h3>
 
-
-to make an executable you can use pyinstaller, but you have to include the "tkinterdnd2" package.
+make sure to include the tkinterdnd2 library
 ```shell
 pip install -U pyinstaller
 pyinstaller --collect-all tkinterdnd2 -F -w -i icon.ico app.py -n 'Audio Player by Erfan ;D'
@@ -22,4 +21,3 @@ if got errors run this command instead
 ```shell
 pyinstaller --collect-all TkinterDnD2 -F -w -i icon.ico app.py -n 'Audio Player by Erfan ;D'
 ```
-or just run the setup file
