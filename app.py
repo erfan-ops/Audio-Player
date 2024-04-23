@@ -1,4 +1,4 @@
-from soundtools import Music, SoundBuffer
+from soundtools import Music, SoundBuffer, Dtype
 import numpy as np
 import matplotlib.pyplot as plt
 import customtkinter as ctk
@@ -10,9 +10,7 @@ from sys import exit as sysExit, argv, platform
 from os import remove
 from os.path import exists, split, splitext
 from threading import Thread
-from time import perf_counter
 from pydub.audio_segment import AudioSegment
-from pydub.playback import play as dubplay
 from icon import daIconFile
 from tempfile import mkstemp
 from pyaudio import Stream
@@ -66,12 +64,12 @@ class App:
         self.timer_text: float = 0.0
         self.timer_step_ms: int = 10
         
-        self.start = perf_counter()
-        
         self.timer = ctk.CTkLabel(self.window,
                                   text=self.timer_text)
         self.timer.place(relx=0.08, rely=0.86, anchor="center")
         
+        self.i = 0
+        self.playing = False
         self.stop_record = False
         self.recording: bytes = bytes()
         self.loaded_buffer: SoundBuffer = np.array([])
@@ -131,7 +129,7 @@ class App:
     
     def play_loaded(self) -> None:
         if not self.loaded_buffer.all():
-            y = Thread(target=self.m.play_buffer, args=(self.loaded_buffer,))
+            y = Thread(target=self.play_buffer, args=(self.loaded_buffer,))
             y.start()
         
         elif self.loaded_file:
@@ -142,40 +140,89 @@ class App:
             self.play_file()
     
     
-    def play(self, file_path: str) -> None:
+    def play_buffer(self, wave: SoundBuffer|bytes, chunk:int=3200) -> None:
+        self.playing = True
+        
+        self.play_btn.configure(text="stop", command=self.stop_playing)
+        
+        if type(wave) == bytes:
+            wave = np.frombuffer(wave, self.m.dtype)
+        
+
+        self.chunk = chunk
+        self.n_chunks = int(wave.size / chunk)
+        for i in range(self.n_chunks):
+            self.i += 1
+            if not self.playing:
+                return
+            
+            b = wave[i*chunk : (i+1)*chunk].data.tobytes()
+            self.m.stream.write(b)
+        
+        b = wave[(i+1)*chunk : ].data.tobytes()
+        self.m.stream.write(b)
+        
+        self.playing = False
+        self.stop_playing()
+    
+    
+    def resume(self):
+        self.playing = True
+        
+        self.window.after(self.timer_step_ms, self.update_time, self.timer)
+        
+        y = Thread(target=self.play_buffer, args=(self.wave[self.i*self.chunk:],))
+        y.start()
+    
+    
+    def stop_playing(self) -> None:
+        if not self.playing:
+            self.play_btn.configure(text="start", command=self.play_loaded)
+        else:
+            self.playing = False
+            self.play_btn.configure(text="resume", command=self.resume)
+    
+    
+    def play(self, file_path: str, chunk:int=3200) -> None:
+        self.playing = True
         self.timer_text = 0
         
         fformat = splitext(file_path)[1]
         fformat = fformat.removeprefix(".")
         
+        self.i = 0
+        self.chunk = chunk
+        
         #-- for ".erfan" files --#
         if fformat == "erfan":
             with open(file_path, "rb") as f:
                 data = f.read()
-                sample_rate = int.from_bytes(data[0:4], "little")
+                self.sample_rate = int.from_bytes(data[0:4], "little")
                 dtype = int.from_bytes(data[4:6], "little")
                 strdtype = self.get_sampwidth_from_number(dtype)
                 n_channels = int.from_bytes(data[6:8], "little")
                 data = np.frombuffer(data[8:], dtype=strdtype)
-                self.song_duration = data.size/sample_rate
-                minuts = int(self.song_duration/60)
-                seconds = self.song_duration - minuts*60
-                timer_text = f"{minuts}:{round(seconds, 2)}"
+            
+            self.song_duration = data.size/self.sample_rate
+            minuts = int(self.song_duration/60)
+            seconds = self.song_duration - minuts*60
+            timer_text = f"{minuts}:{round(seconds, 2)}"
                 
-                duration = ctk.CTkLabel(self.window,
-                                        text=timer_text)
-                duration.place(relx=0.9, rely=0.86, anchor="center")
+            duration = ctk.CTkLabel(self.window,
+                                    text=timer_text)
+            duration.place(relx=0.9, rely=0.86, anchor="center")
                 
-                self.m.stream.stop_stream()
-                self.m.stream.close()
-                self.m.stream = self.config_stream(samp_width=self.m.AUDIO_OBJECT.get_format_from_width(dtype),
-                                                channels=n_channels,
-                                                sample_rate=sample_rate)
+            self.m.stream.stop_stream()
+            self.m.stream.close()
+            self.m.stream = self.config_stream(samp_width=self.m.AUDIO_OBJECT.get_format_from_width(dtype),
+                                               channels=n_channels,
+                                               sample_rate=self.sample_rate)
                 
-                self.window.after(self.timer_step_ms, self.update_time, self.timer)
-                self.start = perf_counter()
+            self.wave = self.m.read_from_erfan(file_path)
                 
-                self.m.play_erfan(file_path)
+            self.window.after(self.timer_step_ms, self.update_time, self.timer)
+                
+            self.play_buffer(self.wave, self.chunk)
         
         #-- for adts files --#
         elif fformat in ["aac", "wma", "m4a"]:
@@ -186,15 +233,24 @@ class App:
                                     text=round(self.song_duration, 2))
             duration.grid(row=0, column=1)
             
-            self.window.after(self.timer_step_ms, self.update_time, self.timer)
-            self.start = perf_counter()
+            self.sample_rate = sound.frame_rate
             
-            dubplay(sound)
+            self.m.stream.stop_stream()
+            self.m.stream.close()
+            self.m.stream = self.config_stream(samp_width=self.m.AUDIO_OBJECT.get_format_from_width(sound.sample_width),
+                                               channels=sound.channels,
+                                               sample_rate=self.sample_rate)
+            
+            self.wave = np.frombuffer(sound._data, self.get_sampwidth_from_number(sound.sample_width))
+            
+            self.window.after(self.timer_step_ms, self.update_time, self.timer)
+            
+            self.play_buffer(self.wave, self.chunk)
         
         #-- other files such as mp3, ogg, wav, aiff, flac --#
         else:
-            data, sample_rate = sfRead(file_path)
-            self.song_duration = data.size/sample_rate/data.ndim
+            data, self.sample_rate = sfRead(file_path)
+            self.song_duration = data.size/self.sample_rate/data.ndim
             
             duration = ctk.CTkLabel(self.window,
                                     text=round(self.song_duration, 2))
@@ -209,13 +265,13 @@ class App:
             self.m.stream.close()
             self.m.stream = self.config_stream(samp_width=self.m.AUDIO_OBJECT.get_format_from_width(dtype),
                                                channels=data.ndim,
-                                               sample_rate=sample_rate)
+                                               sample_rate=self.sample_rate)
+            
+            self.wave = data
             
             self.window.after(self.timer_step_ms, self.update_time, self.timer)
-            self.start = perf_counter()
             
-            
-            self.m.play_buffer(data)
+            self.play_buffer(data, self.chunk)
             
     
     def play_and_close(self, file_name: str) -> None:
@@ -226,7 +282,7 @@ class App:
     
     def play_file(self) -> None:
         self.load_file()
-       
+        
         if self.loaded_file:
             y = Thread(target=self.play, args=(self.loaded_file,))
             y.start()
@@ -272,6 +328,7 @@ class App:
     
     
     def on_quit(self):
+        self.stop_playing()
         self.iconFile.close()
         try:
             remove(self.ICON_PATH)
@@ -311,11 +368,12 @@ class App:
         
         if file:
             self.loaded_file = file
-            self.label_at_02.destroy()
-            self.label_at_02 = ctk.CTkLabel(self.window,
-                                            text="file has been loaded",
-                                            text_color=self.FG_GREEN)
-            self.label_at_02.place(relx=0.5, y=10, anchor="center")
+            
+            self.i = 0
+            self.playing = False
+            self.stop_playing()
+            
+            self.label_at_02.configure(text="file has been loaded")
             self.loaded_buffer = np.array([])
     
     
@@ -347,9 +405,24 @@ class App:
         return dtype
     
     
+    def get_sampwith_from_dtype(self, dtype: Dtype) -> int:
+        match dtype:
+            case np.uint8:
+                dtype = 1
+            case np.int16:
+                dtype = 2
+            case np.float32:
+                dtype = 4
+        
+        return dtype
+    
+    
     def update_time(self, timer: ctk.CTkLabel) -> None:
+        if not self.playing:
+            return
+        
         if self.song_duration and self.timer_text < self.song_duration:
-            self.timer_text = perf_counter() - self.start
+            self.timer_text = (self.wave.size - self.wave[self.i*self.chunk:].size) / self.sample_rate
             
             minuts = int(self.timer_text/60)
             seconds = self.timer_text - minuts*60
@@ -452,11 +525,7 @@ class App:
             if remove_temp_file:
                 remove(file_save_wav)
 
-        self.label_at_02.destroy()
-        self.label_at_02 = ctk.CTkLabel(self.window,
-                                        text="successfully exported",
-                                        text_color=self.FG_GREEN)
-        self.label_at_02.place(relx=0.5, y=10, anchor="center")
+        self.label_at_02.configure(text="successfully exported")
     
     
     def save_file(self, file_path: str|None=None, fformat: str="wav", bitrate: int=320) -> None:
@@ -550,11 +619,7 @@ class App:
             AudioSegment.from_file(file_path, file_format).export(file_save_path,
                                                                   format=codec)
         
-        self.label_at_02.destroy()
-        self.label_at_02 = ctk.CTkLabel(self.window,
-                                        text="successfully exported",
-                                        text_color=self.FG_GREEN)
-        self.label_at_02.place(relx=0.5, y=10, anchor="center")
+        self.label_at_02.configure(text="successfully exported")
         
         if remove_temp_file:
             remove(wav_file_full_name)
@@ -579,12 +644,12 @@ class App:
         else:
             return
         
+        self.i = 0
+        self.playing = False
+        self.stop_playing()
+        
         self.loaded_file = file_path
-        self.label_at_02.destroy()
-        self.label_at_02 = ctk.CTkLabel(self.window,
-                                        text="file has been loaded",
-                                        text_color=self.FG_GREEN)
-        self.label_at_02.place(relx=0.5, y=10, anchor="center")
+        self.label_at_02.configure(text="file has been loaded")
         self.loaded_buffer = np.array([])
     
     
@@ -699,16 +764,12 @@ class App:
     
     def show_drag_name(self, event):
         file_name = split(event.data.strip("}{"))[1]
-        self.label_at_02.destroy()
-        self.label_at_02 = ctk.CTkLabel(self.window,
-                                        text=file_name,
-                                        text_color=self.FG_GREEN)
-        self.label_at_02.place(relx=0.5, y=10, anchor="center")
+        self.label_at_02.configure(text=file_name)
     
     
     def remove_drag_name(self, event):
         self.image_label.destroy()
-        self.label_at_02.destroy()
+        self.label_at_02.configure(text="")
     
     
     def record(self) -> bytes:
@@ -737,11 +798,7 @@ class App:
                                         corner_radius=self.bcr)
         self.record_btn.place(relx=0.5, rely=0.12, anchor=ctk.CENTER)
         
-        self.label_at_02.destroy()
-        self.label_at_02 = ctk.CTkLabel(self.window,
-                                        text="sound loaded",
-                                        text_color=self.FG_GREEN)
-        self.label_at_02.grid(row=0, column=2)
+        self.label_at_02.configure(text="sound loaded")
         
         self.loaded_buffer = np.frombuffer(self.recording, self.m.input_dtype)
     
@@ -775,12 +832,12 @@ class App:
                                    corner_radius=self.bcr)
         export_btn.place(relx=0.1, rely=0.22, anchor="center")
         
-        play_btn = ctk.CTkButton(self.window,
-                                 text="play",
-                                 command=self.play_loaded,
-                                 width=80,
-                                 corner_radius=self.bcr)
-        play_btn.place(relx=0.5, rely=0.22, anchor=ctk.CENTER)
+        self.play_btn = ctk.CTkButton(self.window,
+                                      text="play",
+                                      command=self.play_loaded,
+                                      width=80,
+                                      corner_radius=self.bcr)
+        self.play_btn.place(relx=0.5, rely=0.22, anchor=ctk.CENTER)
         
         self.record_btn = ctk.CTkButton(self.window,
                                         text="record",
