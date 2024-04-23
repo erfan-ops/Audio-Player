@@ -68,6 +68,7 @@ class App:
                                   text=self.timer_text)
         self.timer.place(relx=0.08, rely=0.86, anchor="center")
         
+        self.default_chunk = 1600
         self.i = 0
         self.playing = False
         self.stop_record = False
@@ -140,7 +141,7 @@ class App:
             self.play_file()
     
     
-    def play_buffer(self, wave: SoundBuffer|bytes, chunk:int=3200) -> None:
+    def play_buffer(self, wave: SoundBuffer|bytes, chunk:int|None=None) -> None:
         self.playing = True
         
         self.play_btn.configure(text="stop", command=self.stop_playing)
@@ -148,7 +149,7 @@ class App:
         if type(wave) == bytes:
             wave = np.frombuffer(wave, self.m.dtype)
         
-
+        chunk = self.default_chunk if not chunk else chunk
         self.chunk = chunk
         self.n_chunks = int(wave.size / chunk)
         for i in range(self.n_chunks):
@@ -183,13 +184,14 @@ class App:
             self.play_btn.configure(text="resume", command=self.resume)
     
     
-    def play(self, file_path: str, chunk:int=3200) -> None:
+    def play(self, file_path: str, chunk:int|None=None) -> None:
         self.playing = True
         self.timer_text = 0
         
         fformat = splitext(file_path)[1]
         fformat = fformat.removeprefix(".")
         
+        chunk = self.default_chunk if not chunk else chunk
         self.i = 0
         self.chunk = chunk
         

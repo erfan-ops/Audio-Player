@@ -6,6 +6,6 @@ customtkinter==5.2.2
 soundfile==0.12.1
 tkinterdnd2==0.3.0
 pydub==0.25.1
-soundtools==0.2.0.4
+soundtools==0.2.0.5
 librosa==0.10.1
 keyboard==0.13.5
