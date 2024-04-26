@@ -16,6 +16,7 @@ from tempfile import mkstemp
 from pyaudio import Stream
 from subprocess import check_output, run
 from keyboard import is_pressed
+from time import perf_counter
 
 
 class Tk(ctk.CTk, DnDWrapper):
@@ -74,6 +75,8 @@ class App:
         self.stop_record = False
         self.recording: bytes = bytes()
         self.loaded_buffer: SoundBuffer = np.array([])
+        self.space_timeout = 0
+        self.space_timeout_delay = 0.3
         
         self.loaded_file: str = ""
         
@@ -94,7 +97,7 @@ class App:
         
         if len(argv) > 1 and exists(argv[1]):
             self.song_duration = 0
-            x = Thread(target=self.play_and_close, args=(argv[1],))
+            x = Thread(target=self.play, args=(argv[1],))
             x.start()
             self.window.after(self.timer_step_ms, self.update_time, self.timer)
         
@@ -154,6 +157,9 @@ class App:
         self.n_chunks = int(wave.size / chunk)
         for i in range(self.n_chunks):
             self.i += 1
+            if is_pressed("space") and perf_counter() > self.space_timeout:
+                self.stop_playing()
+                self.space_timeout = perf_counter()+self.space_timeout_delay
             if not self.playing:
                 return
             
@@ -165,6 +171,15 @@ class App:
         
         self.playing = False
         self.stop_playing()
+    
+    
+    def check_for_resume(self):
+        if is_pressed("space") and perf_counter() > self.space_timeout:
+            self.space_timeout = perf_counter()+self.space_timeout_delay
+            self.resume()
+            return
+        
+        self.window.after(self.timer_step_ms, self.check_for_resume)
     
     
     def resume(self):
@@ -182,6 +197,7 @@ class App:
         else:
             self.playing = False
             self.play_btn.configure(text="resume", command=self.resume)
+            self.window.after(self.timer_step_ms, self.check_for_resume)
     
     
     def play(self, file_path: str, chunk:int|None=None) -> None:
@@ -274,12 +290,6 @@ class App:
             self.window.after(self.timer_step_ms, self.update_time, self.timer)
             
             self.play_buffer(data, self.chunk)
-            
-    
-    def play_and_close(self, file_name: str) -> None:
-        self.loaded_file = file_name
-        self.play(file_name)
-        self.on_quit()
     
     
     def play_file(self) -> None:
@@ -756,12 +766,14 @@ class App:
     
     def render_drag_name(self, event):
         file_name = split(event.data.strip("}{"))[1]
-        self.image_label.destroy()
-        self.image_label = ctk.CTkLabel(self.window,
-                                        text=file_name)
         x, y = self.window.winfo_pointerxy()
-        self.image_label.place(x=x - self.window.winfo_rootx() + self.offset,
-                               y=y - self.window.winfo_rooty() + self.offset)
+        self.image_label.configure(x=x - self.window.winfo_rootx() + self.offset,
+                                   y=y - self.window.winfo_rooty() + self.offset)
+        # self.image_label.destroy()
+        # self.image_label = ctk.CTkLabel(self.window,
+        #                                 text=file_name)
+        # self.image_label.place(x=x - self.window.winfo_rootx() + self.offset,
+        #                        y=y - self.window.winfo_rooty() + self.offset)
         
     
     def show_drag_name(self, event):
@@ -791,14 +803,8 @@ class App:
     def stop_record_func(self) -> None:
         self.stop_record = True
         
-        self.record_stop_btn.destroy()
-        
-        self.record_btn = ctk.CTkButton(self.window,
-                                        text="record",
-                                        command=self.record_mic,
-                                        width=80,
-                                        corner_radius=self.bcr)
-        self.record_btn.place(relx=0.5, rely=0.12, anchor=ctk.CENTER)
+        self.record_btn.configure(text="record",
+                                  command=self.record_mic)
         
         self.label_at_02.configure(text="sound loaded")
         
@@ -806,14 +812,8 @@ class App:
     
     
     def record_mic(self):
-        self.record_btn.destroy()
-        
-        self.record_stop_btn = ctk.CTkButton(self.window,
-                                             text="stop",
-                                             command=self.stop_record_func,
-                                             width=80,
-                                             corner_radius=self.bcr)
-        self.record_stop_btn.place(relx=0.5, rely=0.12, anchor=ctk.CENTER)
+        self.record_btn.configure(text="stop",
+                                  command=self.stop_record_func)
         
         x = Thread(target=self.record)
         x.start()
