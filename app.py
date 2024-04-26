@@ -94,6 +94,10 @@ class App:
         
         self.label_at_02 = ctk.CTkLabel(self.window, text="")
         
+        self.duration = ctk.CTkLabel(self.window,
+                                     text="")
+        self.duration.place(relx=0.9, rely=0.86, anchor="center")
+        
         
         if len(argv) > 1 and exists(argv[1]):
             self.song_duration = 0
@@ -133,6 +137,13 @@ class App:
     
     def play_loaded(self) -> None:
         if not self.loaded_buffer.all():
+            self.song_duration = self.loaded_buffer.size / self.m.input_rate
+            minuts = int(self.song_duration/60)
+            seconds = self.song_duration - minuts*60
+            timer_text = f"{minuts}:{round(seconds, 2)}"
+            self.duration.configure(text=timer_text)
+            self.window.after(self.timer_step_ms, self.update_time, self.timer)
+            
             y = Thread(target=self.play_buffer, args=(self.loaded_buffer,))
             y.start()
         
@@ -226,9 +237,7 @@ class App:
             seconds = self.song_duration - minuts*60
             timer_text = f"{minuts}:{round(seconds, 2)}"
                 
-            duration = ctk.CTkLabel(self.window,
-                                    text=timer_text)
-            duration.place(relx=0.9, rely=0.86, anchor="center")
+            self.duration.configure(text=timer_text)
                 
             self.m.stream.stop_stream()
             self.m.stream.close()
@@ -247,9 +256,7 @@ class App:
             sound = AudioSegment.from_file(file_path, fformat)
             
             self.song_duration = sound.duration_seconds
-            duration = ctk.CTkLabel(self.window,
-                                    text=round(self.song_duration, 2))
-            duration.grid(row=0, column=1)
+            self.duration.configure(text=(self.song_duration, 2))
             
             self.sample_rate = sound.frame_rate
             
@@ -270,9 +277,7 @@ class App:
             data, self.sample_rate = sfRead(file_path)
             self.song_duration = data.size/self.sample_rate/data.ndim
             
-            duration = ctk.CTkLabel(self.window,
-                                    text=round(self.song_duration, 2))
-            duration.grid(row=0, column=1)
+            self.duration.configure(text=(self.song_duration, 2))
             
             if data.dtype == "float64":
                 data = data.astype(np.float32)
@@ -798,6 +803,8 @@ class App:
             self.recording += data
         
         self.m.input_stream.stop_stream()
+        self.wave = np.frombuffer(self.recording, dtype=self.m.input_dtype)
+        self.sample_rate = self.m.input_rate
     
     
     def stop_record_func(self) -> None:
