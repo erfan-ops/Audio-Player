@@ -89,10 +89,11 @@ class App:
         self.bcr = 8 # button_corner_radius
         self.export_buttons_pady = 2
         self.temp_wav_file = ""
-        self.image_label = ctk.CTkLabel(self.window, text="test text")
+        self.image_label = ctk.CTkLabel(self.window, text="", text_color="#409a73")
         self.offset = 8
         
-        self.label_at_02 = ctk.CTkLabel(self.window, text="")
+        self.label_at_02 = ctk.CTkLabel(self.window, text="", text_color="#409a73")
+        self.label_at_02.place(x=10, y=0)
         
         self.duration = ctk.CTkLabel(self.window,
                                      text="")
@@ -107,6 +108,9 @@ class App:
         
         self.main()
         self.iconFile.close()
+        
+        self.image_label.tkraise()
+        
         self.window.mainloop()
     
     
@@ -390,7 +394,7 @@ class App:
             self.playing = False
             self.stop_playing()
             
-            self.label_at_02.configure(text="file has been loaded")
+            self.label_at_02.configure(text=f"Loaded: {split(file)[1]}")
             self.loaded_buffer = np.array([])
     
     
@@ -666,7 +670,7 @@ class App:
         self.stop_playing()
         
         self.loaded_file = file_path
-        self.label_at_02.configure(text="file has been loaded")
+        self.label_at_02.configure(text=f"Loaded: {split(file_path)[1]}")
         self.loaded_buffer = np.array([])
     
     
@@ -770,24 +774,19 @@ class App:
     
     
     def render_drag_name(self, event):
-        file_name = split(event.data.strip("}{"))[1]
         x, y = self.window.winfo_pointerxy()
-        self.image_label.configure(x=x - self.window.winfo_rootx() + self.offset,
-                                   y=y - self.window.winfo_rooty() + self.offset)
-        # self.image_label.destroy()
-        # self.image_label = ctk.CTkLabel(self.window,
-        #                                 text=file_name)
-        # self.image_label.place(x=x - self.window.winfo_rootx() + self.offset,
-        #                        y=y - self.window.winfo_rooty() + self.offset)
+        self.image_label.place_configure(x=x - self.window.winfo_rootx() + self.offset,
+                                         y=y - self.window.winfo_rooty() + self.offset)
         
     
     def show_drag_name(self, event):
         file_name = split(event.data.strip("}{"))[1]
         self.label_at_02.configure(text=file_name)
+        self.image_label.configure(text=file_name)
     
     
     def remove_drag_name(self, event):
-        self.image_label.destroy()
+        self.image_label.configure(text="")
         self.label_at_02.configure(text="")
     
     
