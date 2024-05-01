@@ -20,7 +20,7 @@ from time import perf_counter
 
 
 class Tk(ctk.CTk, DnDWrapper):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.TkdndVersion = _require(self)
 
@@ -67,16 +67,16 @@ class App:
         
         self.timer = ctk.CTkLabel(self.window,
                                   text=self.timer_text)
-        self.timer.place(relx=0.02, rely=0.9, anchor=ctk.W)
+        self.timer.place(relx=0.02, rely=0.92, anchor=ctk.W)
         
         self.duration = ctk.CTkLabel(self.window,
                                      text="")
-        self.duration.place(relx=0.98, rely=0.9, anchor=ctk.E)
+        self.duration.place(relx=0.98, rely=0.92, anchor=ctk.E)
         
         self.progress_bar = ctk.CTkProgressBar(self.window,
                                                width=370,
                                                height=15)
-        self.progress_bar.place(relx=0.5, rely=0.9, anchor=ctk.CENTER)
+        self.progress_bar.place(relx=0.5, rely=0.92, anchor=ctk.CENTER)
         self.progress_bar.set(0)
         
         self.default_chunk = 1600
@@ -188,7 +188,7 @@ class App:
         self.stop_playing()
     
     
-    def check_for_resume(self):
+    def check_for_resume(self) -> None:
         if is_pressed("space") and perf_counter() > self.space_timeout:
             self.space_timeout = perf_counter()+self.space_timeout_delay
             self.resume()
@@ -197,7 +197,7 @@ class App:
         self.window.after(self.timer_step_ms, self.check_for_resume)
     
     
-    def resume(self):
+    def resume(self) -> None:
         self.playing = True
         
         self.window.after(self.timer_step_ms, self.update_time, self.timer)
@@ -773,20 +773,20 @@ class App:
                                                                         pady=self.export_buttons_pady)
     
     
-    def render_drag_name(self, event):
+    def render_drag_name(self, event) -> None:
         x, y = self.window.winfo_pointerxy()
         self.image_label.place_configure(x=x - self.window.winfo_rootx() + self.offset,
                                          y=y - self.window.winfo_rooty() + self.offset)
         
     
-    def show_drag_name(self, event):
+    def show_drag_name(self, event) -> None:
         file_name = split(event.data.strip("}{"))[1]
         self.label_at_02.configure(text=file_name)
         self.image_label.configure(text=file_name)
         self.image_label.place()
     
     
-    def remove_drag_name(self, event):
+    def remove_drag_name(self, event) -> None:
         self.image_label.configure(text="")
         self.image_label.place_forget()
         self.label_at_02.configure(text="")
@@ -819,7 +819,7 @@ class App:
         self.loaded_buffer = np.frombuffer(self.recording, self.m.input_dtype)
     
     
-    def record_mic(self):
+    def record_mic(self) -> None:
         self.record_btn.configure(text="stop",
                                   command=self.stop_record_func)
         
@@ -879,4 +879,4 @@ class App:
 
 
 if __name__ == "__main__":
-    app = App()
+    App()
