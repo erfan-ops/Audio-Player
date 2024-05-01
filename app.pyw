@@ -67,7 +67,17 @@ class App:
         
         self.timer = ctk.CTkLabel(self.window,
                                   text=self.timer_text)
-        self.timer.place(relx=0.08, rely=0.86, anchor="center")
+        self.timer.place(relx=0.02, rely=0.9, anchor=ctk.W)
+        
+        self.duration = ctk.CTkLabel(self.window,
+                                     text="")
+        self.duration.place(relx=0.98, rely=0.9, anchor=ctk.E)
+        
+        self.progress_bar = ctk.CTkProgressBar(self.window,
+                                               width=370,
+                                               height=15)
+        self.progress_bar.place(relx=0.5, rely=0.9, anchor=ctk.CENTER)
+        self.progress_bar.set(0)
         
         self.default_chunk = 1600
         self.i = 0
@@ -80,12 +90,6 @@ class App:
         
         self.loaded_file: str = ""
         
-        self.progress_bar = ctk.CTkProgressBar(self.window,
-                                               width=440,
-                                               height=15)
-        self.progress_bar.place(x=20, y=330)
-        self.progress_bar.set(0)
-        
         self.bcr = 8 # button_corner_radius
         self.export_buttons_pady = 2
         self.temp_wav_file = ""
@@ -94,10 +98,6 @@ class App:
         
         self.label_at_02 = ctk.CTkLabel(self.window, text="", text_color="#409a73")
         self.label_at_02.place(x=10, y=0)
-        
-        self.duration = ctk.CTkLabel(self.window,
-                                     text="")
-        self.duration.place(relx=0.9, rely=0.86, anchor="center")
         
         
         if len(argv) > 1 and exists(argv[1]):
@@ -655,7 +655,7 @@ class App:
         
     
     def load_dragged(self, event) -> None:
-        self.image_label.destroy()
+        self.image_label.place_forget()
         files = event.data.split("} {")
         for file_path in files:
             file_path = file_path.strip("{}")
@@ -783,10 +783,12 @@ class App:
         file_name = split(event.data.strip("}{"))[1]
         self.label_at_02.configure(text=file_name)
         self.image_label.configure(text=file_name)
+        self.image_label.place()
     
     
     def remove_drag_name(self, event):
         self.image_label.configure(text="")
+        self.image_label.place_forget()
         self.label_at_02.configure(text="")
     
     
@@ -831,14 +833,14 @@ class App:
                                  command=self.load_file,
                                  width=80,
                                  corner_radius=self.bcr)
-        open_btn.place(relx=0.1, rely=0.12, anchor="center")
+        open_btn.place(relx=0.12, rely=0.12, anchor="center")
         
         export_btn = ctk.CTkButton(self.window,
                                    text="export",
                                    command=self.export,
                                    width=80,
                                    corner_radius=self.bcr)
-        export_btn.place(relx=0.1, rely=0.22, anchor="center")
+        export_btn.place(relx=0.12, rely=0.22, anchor="center")
         
         self.play_btn = ctk.CTkButton(self.window,
                                       text="play",
@@ -859,15 +861,15 @@ class App:
                                      command=self.visualize_sound_file,
                                      width=80,
                                      corner_radius=self.bcr)
-        visualize_btn.place(relx=0.9, rely=0.1, anchor=ctk.CENTER)
+        visualize_btn.place(relx=0.87, rely=0.12, anchor=ctk.CENTER)
         
         drag_lab = ctk.CTkLabel(self.window,
                                 text="drag",
-                                width=400,
+                                width=440,
                                 height=190,
                                 fg_color=self.COLOR1,
                                 text_color=self.GREY)
-        drag_lab.place(relx=0.5, rely=0.55, anchor=ctk.CENTER)
+        drag_lab.place(relx=0.5, rely=0.57, anchor=ctk.CENTER)
         drag_lab.drop_target_register(DND_FILES)
         drag_lab.dnd_bind("<<DropEnter>>", self.show_drag_name)
         drag_lab.dnd_bind("<<DropPosition>>", self.render_drag_name)
