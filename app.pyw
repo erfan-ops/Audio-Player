@@ -73,12 +73,6 @@ class App:
                                      text="")
         self.duration.place(relx=0.98, rely=0.92, anchor=ctk.E)
         
-        self.progress_bar = ctk.CTkProgressBar(self.window,
-                                               width=370,
-                                               height=15)
-        self.progress_bar.place(relx=0.5, rely=0.92, anchor=ctk.CENTER)
-        self.progress_bar.set(0)
-        
         self.default_chunk = 1600
         self.i = 0
         self.playing = False
@@ -102,6 +96,8 @@ class App:
         
         if len(argv) > 1 and exists(argv[1]):
             self.song_duration = 0
+            self.loaded_file = argv[1]
+            self.label_at_02.configure(text=f"Loaded: {split(self.loaded_file)[1]}")
             x = Thread(target=self.play, args=(argv[1],))
             x.start()
             self.window.after(self.timer_step_ms, self.update_time, self.timer)
@@ -191,18 +187,18 @@ class App:
     def check_for_resume(self) -> None:
         if is_pressed("space") and perf_counter() > self.space_timeout:
             self.space_timeout = perf_counter()+self.space_timeout_delay
-            self.resume()
+            self.resume(self.original_wave[self.i*self.chunk:])
             return
         
         self.window.after(self.timer_step_ms, self.check_for_resume)
     
     
-    def resume(self) -> None:
+    def resume(self, wave: SoundBuffer) -> None:
         self.playing = True
         
         self.window.after(self.timer_step_ms, self.update_time, self.timer)
         
-        y = Thread(target=self.play_buffer, args=(self.wave[self.i*self.chunk:],))
+        y = Thread(target=self.play_buffer, args=(wave,))
         y.start()
     
     
@@ -211,7 +207,7 @@ class App:
             self.play_btn.configure(text="start", command=self.play_loaded)
         else:
             self.playing = False
-            self.play_btn.configure(text="resume", command=self.resume)
+            self.play_btn.configure(text="resume", command=lambda: self.resume(self.original_wave[self.i*self.chunk:]))
             self.window.after(self.timer_step_ms, self.check_for_resume)
     
     
@@ -248,12 +244,12 @@ class App:
             self.m.stream = self.config_stream(samp_width=self.m.AUDIO_OBJECT.get_format_from_width(dtype),
                                                channels=n_channels,
                                                sample_rate=self.sample_rate)
-                
-            self.wave = self.m.read_from_erfan(file_path)
-                
+            
+            self.original_wave = self.m.read_from_erfan(file_path)
+            
             self.window.after(self.timer_step_ms, self.update_time, self.timer)
-                
-            self.play_buffer(self.wave, self.chunk)
+            
+            self.play_buffer(self.original_wave, self.chunk)
         
         #-- for adts files --#
         elif fformat in ["aac", "wma", "m4a"]:
@@ -270,11 +266,11 @@ class App:
                                                channels=sound.channels,
                                                sample_rate=self.sample_rate)
             
-            self.wave = np.frombuffer(sound._data, self.get_sampwidth_from_number(sound.sample_width))
+            self.original_wave = np.frombuffer(sound._data, self.get_sampwidth_from_number(sound.sample_width))
             
             self.window.after(self.timer_step_ms, self.update_time, self.timer)
             
-            self.play_buffer(self.wave, self.chunk)
+            self.play_buffer(self.original_wave, self.chunk)
         
         #-- other files such as mp3, ogg, wav, aiff, flac --#
         else:
@@ -294,7 +290,7 @@ class App:
                                                channels=data.ndim,
                                                sample_rate=self.sample_rate)
             
-            self.wave = data
+            self.original_wave = data
             
             self.window.after(self.timer_step_ms, self.update_time, self.timer)
             
@@ -443,7 +439,7 @@ class App:
             return
         
         if self.song_duration and self.timer_text < self.song_duration:
-            self.timer_text = (self.wave.size - self.wave[self.i*self.chunk:].size) / self.sample_rate
+            self.timer_text = (self.original_wave.size - self.original_wave[self.i*self.chunk:].size) / self.sample_rate
             
             minuts = int(self.timer_text/60)
             seconds = self.timer_text - minuts*60
@@ -827,6 +823,18 @@ class App:
         x.start()
     
     
+    def go_to(self, event) -> None:
+        if self.playing:
+            self.stop_playing()
+        self.slider_pos = event
+    
+    
+    def end_go_to(self, event) -> None:
+        wave = self.original_wave[int(self.original_wave.size*self.slider_pos):]
+        self.i = int(self.slider_pos * int(self.original_wave.size / self.chunk))
+        self.resume(wave)
+    
+    
     def main(self) -> None:
         open_btn = ctk.CTkButton(self.window,
                                  text="open file",
@@ -875,6 +883,14 @@ class App:
         drag_lab.dnd_bind("<<DropPosition>>", self.render_drag_name)
         drag_lab.dnd_bind("<<Drop>>", self.load_dragged)
         drag_lab.dnd_bind("<<DropLeave>>", self.remove_drag_name)
+        
+        self.progress_bar = ctk.CTkSlider(self.window,
+                                          width=370,
+                                          height=18,
+                                          command=self.go_to)
+        self.progress_bar.place(relx=0.5, rely=0.92, anchor=ctk.CENTER)
+        self.progress_bar.set(0)
+        self.progress_bar.bind("<ButtonRelease-1>", self.end_go_to)
 
 
 

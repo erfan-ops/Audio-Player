@@ -170,6 +170,6 @@ voc4 = append_arrs(voc4p1, voc4p1, voc4p2, voc4p2)
 song = Music.add_multiple_buffers(voc1, voc2, voc3, voc4)
 
 m.play_buffer(song)
-# m.export_to_erfan("Aysar kotal - Grigorian.erfan", song, m.sample_rate, m.dtype, 1)
+# m.export_to_erfan("Ay Sar Kotal - Grigorian.erfan", song, m.sample_rate, m.dtype, 1)
 
 m.done()
