@@ -224,90 +224,10 @@ class App:
         fformat = fformat.removeprefix(".")
         
         chunk = self.default_chunk if not chunk else chunk
-        self.i = 0
         self.chunk = chunk
         
-        #-- for ".erfan" files --#
-        if fformat == "erfan":
-            with open(file_path, "rb") as f:
-                data = f.read()
-                self.sample_rate = int.from_bytes(data[0:4], "little")
-                dtype = int.from_bytes(data[4:6], "little")
-                strdtype = self.get_sampwidth_from_number(dtype)
-                n_channels = int.from_bytes(data[6:8], "little")
-                data = np.frombuffer(data[8:], dtype=strdtype)
-            
-            self.song_duration = data.size/self.sample_rate/data.ndim
-            minuts = int(self.song_duration/60)
-            seconds = self.song_duration - minuts*60
-            timer_text = f"{minuts}:{round(seconds, 2)}"
-                
-            self.duration.configure(text=timer_text)
-                
-            self.m.stream.stop_stream()
-            self.m.stream.close()
-            self.m.stream = self.config_stream(samp_width=self.m.AUDIO_OBJECT.get_format_from_width(dtype),
-                                               channels=n_channels,
-                                               sample_rate=self.sample_rate)
-            
-            self.original_wave = self.m.read_from_erfan(file_path)
-            
-            self.window.after(self.timer_step_ms, self.update_time)
-            
-            self.play_buffer(self.original_wave, self.chunk)
-        
-        #-- for adts files --#
-        elif fformat in ["aac", "wma", "m4a"]:
-            sound = AudioSegment.from_file(file_path, fformat)
-            
-            self.song_duration = sound.duration_seconds
-            minuts = int(self.song_duration/60)
-            seconds = self.song_duration - minuts*60
-            timer_text = f"{minuts}:{round(seconds, 2)}"
-                
-            self.duration.configure(text=timer_text)
-            
-            self.sample_rate = sound.frame_rate
-            
-            self.m.stream.stop_stream()
-            self.m.stream.close()
-            self.m.stream = self.config_stream(samp_width=self.m.AUDIO_OBJECT.get_format_from_width(sound.sample_width),
-                                               channels=sound.channels,
-                                               sample_rate=self.sample_rate)
-            
-            self.original_wave = np.frombuffer(sound._data, self.get_sampwidth_from_number(sound.sample_width))
-            
-            self.window.after(self.timer_step_ms, self.update_time)
-            
-            self.play_buffer(self.original_wave, self.chunk)
-        
-        #-- other files such as mp3, ogg, wav, aiff, flac --#
-        else:
-            data, self.sample_rate = sfRead(file_path)
-            self.song_duration = data.size/self.sample_rate/data.ndim
-            
-            minuts = int(self.song_duration/60)
-            seconds = self.song_duration - minuts*60
-            timer_text = f"{minuts}:{round(seconds, 2)}"
-                
-            self.duration.configure(text=timer_text)
-            
-            if data.dtype == "float64":
-                data = data.astype(np.float32)
-            
-            dtype = self.get_sampwidth_from_str(data.dtype)
-            
-            self.m.stream.stop_stream()
-            self.m.stream.close()
-            self.m.stream = self.config_stream(samp_width=self.m.AUDIO_OBJECT.get_format_from_width(dtype),
-                                               channels=data.ndim,
-                                               sample_rate=self.sample_rate)
-            
-            self.original_wave = data
-            
-            self.window.after(self.timer_step_ms, self.update_time)
-            
-            self.play_buffer(data, self.chunk)
+        self.window.after(self.timer_step_ms, self.update_time)
+        self.play_buffer(self.wave)
     
     
     def play_file(self) -> None:
@@ -371,6 +291,78 @@ class App:
         sysExit()
     
     
+    def setup_song_wave_duration(self, file_path: str) -> None:
+        fformat = splitext(file_path)[1]
+        fformat = fformat.removeprefix(".")
+        
+        #-- for ".erfan" files --#
+        if fformat == "erfan":
+            with open(file_path, "rb") as f:
+                data = f.read()
+                self.sample_rate = int.from_bytes(data[0:4], "little")
+                dtype = int.from_bytes(data[4:6], "little")
+                strdtype = self.get_sampwidth_from_number(dtype)
+                n_channels = int.from_bytes(data[6:8], "little")
+                data = np.frombuffer(data[8:], dtype=strdtype)
+            
+            self.song_duration = data.size/self.sample_rate/data.ndim
+            minuts = int(self.song_duration/60)
+            seconds = self.song_duration - minuts*60
+            timer_text = f"{minuts}:{round(seconds, 2)}"
+            self.duration.configure(text=timer_text)
+            
+            self.original_wave = self.wave = self.m.read_from_erfan(file_path)
+            
+            self.m.stream.stop_stream()
+            self.m.stream.close()
+            self.m.stream = self.config_stream(samp_width=self.m.AUDIO_OBJECT.get_format_from_width(dtype),
+                                               channels=n_channels,
+                                               sample_rate=self.sample_rate)
+        
+        #-- for adts files --#
+        elif fformat in ["aac", "wma", "m4a"]:
+            sound = AudioSegment.from_file(file_path, fformat)
+            
+            self.song_duration = sound.duration_seconds
+            minuts = int(self.song_duration/60)
+            seconds = self.song_duration - minuts*60
+            timer_text = f"{minuts}:{round(seconds, 2)}"
+                
+            self.duration.configure(text=timer_text)
+            
+            self.sample_rate = sound.frame_rate
+            self.original_wave = self.wave = np.frombuffer(sound._data, self.get_sampwidth_from_number(sound.sample_width))
+
+            self.m.stream.stop_stream()
+            self.m.stream.close()
+            self.m.stream = self.config_stream(samp_width=self.m.AUDIO_OBJECT.get_format_from_width(sound.sample_width),
+                                               channels=sound.channels,
+                                               sample_rate=self.sample_rate)
+        
+        #-- other files such as mp3, ogg, wav, aiff, flac --#
+        else:
+            data, self.sample_rate = sfRead(file_path)
+            self.song_duration = data.size/self.sample_rate/data.ndim
+            
+            minuts = int(self.song_duration/60)
+            seconds = self.song_duration - minuts*60
+            timer_text = f"{minuts}:{round(seconds, 2)}"
+            self.duration.configure(text=timer_text)
+            
+            if data.dtype == "float64":
+                data = data.astype(np.float32)
+            
+            self.original_wave = self.wave = data
+            
+            dtype = self.get_sampwidth_from_str(data.dtype)
+            
+            self.m.stream.stop_stream()
+            self.m.stream.close()
+            self.m.stream = self.config_stream(samp_width=self.m.AUDIO_OBJECT.get_format_from_width(dtype),
+                                               channels=data.ndim,
+                                               sample_rate=self.sample_rate)
+    
+    
     def load_file(self) -> None:
         file = askopenfilename(title="select a sound file",
                                defaultextension=("sound files", ".wav .erfan"),
@@ -400,6 +392,7 @@ class App:
         
         if file:
             self.loaded_file = file
+            self.setup_song_wave_duration(file)
             
             self.i = 0
             self.playing = False
@@ -853,15 +846,15 @@ class App:
     
     
     def end_go_to(self, event) -> None:
-        wave = self.original_wave[int(self.original_wave.size*self.slider_pos):]
+        self.wave = self.original_wave[int(self.original_wave.size*self.slider_pos):]
         self.i = int(self.slider_pos * int(self.original_wave.size / self.chunk))
         
-        if not wave.size:
+        if not self.wave.size:
             self.playing = False
             self.stop_playing()
             return
         if self.go_on:
-            self.resume(wave)
+            self.resume(self.wave)
     
     
     def main(self) -> None:
