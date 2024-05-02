@@ -75,6 +75,7 @@ class App:
         
         self.default_chunk = 1600
         self.i = 0
+        self.go_on = False
         self.playing = False
         self.stop_record = False
         self.recording: bytes = bytes()
@@ -158,7 +159,7 @@ class App:
     def play_buffer(self, wave: SoundBuffer|bytes, chunk:int|None=None) -> None:
         self.playing = True
         
-        self.play_btn.configure(text="stop", command=self.stop_playing)
+        self.play_btn.configure(text="pause", command=self.stop_playing)
         
         if type(wave) == bytes:
             wave = np.frombuffer(wave, self.m.dtype)
@@ -190,7 +191,8 @@ class App:
             self.resume(self.original_wave[self.i*self.chunk:])
             return
         
-        self.window.after(self.timer_step_ms, self.check_for_resume)
+        if not self.playing:
+            self.window.after(self.timer_step_ms, self.check_for_resume)
     
     
     def resume(self, wave: SoundBuffer) -> None:
@@ -203,6 +205,7 @@ class App:
     
     
     def stop_playing(self) -> None:
+        self.go_on = False
         if not self.playing:
             self.play_btn.configure(text="start", command=self.play_loaded)
         else:
@@ -232,7 +235,7 @@ class App:
                 n_channels = int.from_bytes(data[6:8], "little")
                 data = np.frombuffer(data[8:], dtype=strdtype)
             
-            self.song_duration = data.size/self.sample_rate
+            self.song_duration = data.size/self.sample_rate/data.ndim
             minuts = int(self.song_duration/60)
             seconds = self.song_duration - minuts*60
             timer_text = f"{minuts}:{round(seconds, 2)}"
@@ -256,7 +259,11 @@ class App:
             sound = AudioSegment.from_file(file_path, fformat)
             
             self.song_duration = sound.duration_seconds
-            self.duration.configure(text=(self.song_duration, 2))
+            minuts = int(self.song_duration/60)
+            seconds = self.song_duration - minuts*60
+            timer_text = f"{minuts}:{round(seconds, 2)}"
+                
+            self.duration.configure(text=timer_text)
             
             self.sample_rate = sound.frame_rate
             
@@ -277,7 +284,11 @@ class App:
             data, self.sample_rate = sfRead(file_path)
             self.song_duration = data.size/self.sample_rate/data.ndim
             
-            self.duration.configure(text=(self.song_duration, 2))
+            minuts = int(self.song_duration/60)
+            seconds = self.song_duration - minuts*60
+            timer_text = f"{minuts}:{round(seconds, 2)}"
+                
+            self.duration.configure(text=timer_text)
             
             if data.dtype == "float64":
                 data = data.astype(np.float32)
@@ -826,13 +837,19 @@ class App:
     def go_to(self, event) -> None:
         if self.playing:
             self.stop_playing()
+            self.go_on = True
         self.slider_pos = event
     
     
     def end_go_to(self, event) -> None:
         wave = self.original_wave[int(self.original_wave.size*self.slider_pos):]
         self.i = int(self.slider_pos * int(self.original_wave.size / self.chunk))
-        self.resume(wave)
+        if not wave.size:
+            self.playing = False
+            self.stop_playing()
+            return
+        if self.go_on:
+            self.resume(wave)
     
     
     def main(self) -> None:
