@@ -51,7 +51,7 @@ class App:
             self.FG_GREEN = "#3fb582"
             self.GREY = "#505050"
             # self.APP_BG = "#ebebeb"
-        
+
         self.window = Tk()
         self.window.title("Music Player by erfan :D")
         self.window.resizable(False, False)
@@ -66,7 +66,7 @@ class App:
         self.timer_step_ms: int = 10
         
         self.timer = ctk.CTkLabel(self.window,
-                                  text=self.timer_text)
+                                  text="0:0.00")
         self.timer.place(relx=0.02, rely=0.92, anchor=ctk.W)
         
         self.duration = ctk.CTkLabel(self.window,
@@ -84,6 +84,9 @@ class App:
         self.space_timeout_delay = 0.3
         
         self.loaded_file: str = ""
+        self.original_wave: SoundBuffer = np.array([])
+        self.chunk: int = self.default_chunk
+        self.sample_rate: int = 1
         
         self.bcr = 8 # button_corner_radius
         self.export_buttons_pady = 2
@@ -101,10 +104,9 @@ class App:
             self.label_at_02.configure(text=f"Loaded: {split(self.loaded_file)[1]}")
             x = Thread(target=self.play, args=(argv[1],))
             x.start()
-            self.window.after(self.timer_step_ms, self.update_time, self.timer)
+            self.window.after(self.timer_step_ms, self.update_time)
         
         self.main()
-        self.iconFile.close()
         
         self.image_label.tkraise()
         
@@ -143,7 +145,7 @@ class App:
             seconds = self.song_duration - minuts*60
             timer_text = f"{minuts}:{round(seconds, 2)}"
             self.duration.configure(text=timer_text)
-            self.window.after(self.timer_step_ms, self.update_time, self.timer)
+            self.window.after(self.timer_step_ms, self.update_time)
             
             y = Thread(target=self.play_buffer, args=(self.loaded_buffer,))
             y.start()
@@ -198,7 +200,7 @@ class App:
     def resume(self, wave: SoundBuffer) -> None:
         self.playing = True
         
-        self.window.after(self.timer_step_ms, self.update_time, self.timer)
+        self.window.after(self.timer_step_ms, self.update_time)
         
         y = Thread(target=self.play_buffer, args=(wave,))
         y.start()
@@ -207,7 +209,7 @@ class App:
     def stop_playing(self) -> None:
         self.go_on = False
         if not self.playing:
-            self.play_btn.configure(text="start", command=self.play_loaded)
+            self.play_btn.configure(text="play", command=self.play_loaded)
         else:
             self.playing = False
             self.play_btn.configure(text="resume", command=lambda: self.resume(self.original_wave[self.i*self.chunk:]))
@@ -250,7 +252,7 @@ class App:
             
             self.original_wave = self.m.read_from_erfan(file_path)
             
-            self.window.after(self.timer_step_ms, self.update_time, self.timer)
+            self.window.after(self.timer_step_ms, self.update_time)
             
             self.play_buffer(self.original_wave, self.chunk)
         
@@ -275,7 +277,7 @@ class App:
             
             self.original_wave = np.frombuffer(sound._data, self.get_sampwidth_from_number(sound.sample_width))
             
-            self.window.after(self.timer_step_ms, self.update_time, self.timer)
+            self.window.after(self.timer_step_ms, self.update_time)
             
             self.play_buffer(self.original_wave, self.chunk)
         
@@ -303,7 +305,7 @@ class App:
             
             self.original_wave = data
             
-            self.window.after(self.timer_step_ms, self.update_time, self.timer)
+            self.window.after(self.timer_step_ms, self.update_time)
             
             self.play_buffer(data, self.chunk)
     
@@ -357,9 +359,11 @@ class App:
     
     def on_quit(self):
         self.stop_playing()
-        self.iconFile.close()
         try:
+            with open(self.ICON_PATH, "wb") as f:
+                f.truncate(0)
             remove(self.ICON_PATH)
+            self.iconFile.close()
         except Exception:
             pass
         self.m.done()
@@ -445,18 +449,15 @@ class App:
         return dtype
     
     
-    def update_time(self, timer: ctk.CTkLabel) -> None:
+    def update_time(self) -> None:
         if not self.playing:
             return
         
         if self.song_duration and self.timer_text < self.song_duration:
             self.timer_text = (self.original_wave.size - self.original_wave[self.i*self.chunk:].size) / self.sample_rate
             
-            minuts = int(self.timer_text/60)
-            seconds = self.timer_text - minuts*60
-            text = "%d:%.2f" % (minuts, seconds)
-            timer.configure(text=text)
-            self.window.after(self.timer_step_ms, self.update_time, timer)
+            self.timer.configure(text=self.secs2time(self.timer_text))
+            self.window.after(self.timer_step_ms, self.update_time)
             
             self.progress_bar.set(self.timer_text/self.song_duration)
     
@@ -834,16 +835,27 @@ class App:
         x.start()
     
     
+    def secs2time(self, secs) -> str:
+        minuts = int(secs/60)
+        seconds = secs - minuts*60
+        return "%d:%.2f" % (minuts, seconds)
+    
+    
     def go_to(self, event) -> None:
         if self.playing:
             self.stop_playing()
             self.go_on = True
         self.slider_pos = event
+        
+        self.i = int(self.slider_pos * int(self.original_wave.size / self.chunk))
+        self.timer_text = (self.original_wave.size - self.original_wave[self.i*self.chunk:].size) / self.sample_rate
+        self.timer.configure(text=self.secs2time(self.timer_text))
     
     
     def end_go_to(self, event) -> None:
         wave = self.original_wave[int(self.original_wave.size*self.slider_pos):]
         self.i = int(self.slider_pos * int(self.original_wave.size / self.chunk))
+        
         if not wave.size:
             self.playing = False
             self.stop_playing()
