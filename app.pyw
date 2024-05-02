@@ -141,10 +141,7 @@ class App:
     def play_loaded(self) -> None:
         if not self.loaded_buffer.all():
             self.song_duration = self.loaded_buffer.size / self.m.input_rate
-            minuts = int(self.song_duration/60)
-            seconds = self.song_duration - minuts*60
-            timer_text = f"{minuts}:{round(seconds, 2)}"
-            self.duration.configure(text=timer_text)
+            self.duration.configure(text=self.secs2time(self.song_duration))
             self.window.after(self.timer_step_ms, self.update_time)
             
             y = Thread(target=self.play_buffer, args=(self.loaded_buffer,))
@@ -239,6 +236,11 @@ class App:
     
     
     def visualize_sound_file(self) -> None:
+        if not self.loaded_buffer.all():
+            self.visualize_sound(self.loaded_buffer, self.m.input_rate)
+            return
+        
+        
         if not self.loaded_file:
             self.load_file()
         if not self.loaded_file:
@@ -306,10 +308,7 @@ class App:
                 data = np.frombuffer(data[8:], dtype=strdtype)
             
             self.song_duration = data.size/self.sample_rate/data.ndim
-            minuts = int(self.song_duration/60)
-            seconds = self.song_duration - minuts*60
-            timer_text = f"{minuts}:{round(seconds, 2)}"
-            self.duration.configure(text=timer_text)
+            self.duration.configure(text=self.secs2time(self.song_duration))
             
             self.original_wave = self.wave = self.m.read_from_erfan(file_path)
             
@@ -324,11 +323,7 @@ class App:
             sound = AudioSegment.from_file(file_path, fformat)
             
             self.song_duration = sound.duration_seconds
-            minuts = int(self.song_duration/60)
-            seconds = self.song_duration - minuts*60
-            timer_text = f"{minuts}:{round(seconds, 2)}"
-                
-            self.duration.configure(text=timer_text)
+            self.duration.configure(text=self.secs2time(self.song_duration))
             
             self.sample_rate = sound.frame_rate
             self.original_wave = self.wave = np.frombuffer(sound._data, self.get_sampwidth_from_number(sound.sample_width))
@@ -343,11 +338,7 @@ class App:
         else:
             data, self.sample_rate = sfRead(file_path)
             self.song_duration = data.size/self.sample_rate/data.ndim
-            
-            minuts = int(self.song_duration/60)
-            seconds = self.song_duration - minuts*60
-            timer_text = f"{minuts}:{round(seconds, 2)}"
-            self.duration.configure(text=timer_text)
+            self.duration.configure(text=self.secs2time(self.song_duration))
             
             if data.dtype == "float64":
                 data = data.astype(np.float32)
@@ -806,7 +797,12 @@ class App:
         
         self.m.input_stream.stop_stream()
         self.wave = np.frombuffer(self.recording, dtype=self.m.input_dtype)
+        self.original_wave = self.wave
         self.sample_rate = self.m.input_rate
+        
+        self.i = 0
+        
+        self.play_btn.configure(text="play", command=self.play_loaded)
     
     
     def stop_record_func(self) -> None:
