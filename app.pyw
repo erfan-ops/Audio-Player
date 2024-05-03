@@ -17,6 +17,7 @@ from pyaudio import Stream
 from subprocess import check_output, run
 from keyboard import is_pressed
 from time import perf_counter
+from typing import Literal
 
 
 class Tk(ctk.CTk, DnDWrapper):
@@ -128,9 +129,9 @@ class App:
         plt.show()
     
     
-    def config_stream(self, samp_width: int, channels: int, sample_rate: int) -> Stream:
+    def config_stream(self, samp_width: Literal[1, 4, 8, 32, "uint8", "int16", "int24", "float32"], channels: int, sample_rate: int) -> Stream:
         if type(samp_width) == str:
-            samp_width = self.get_sampwidth_from_str(samp_width)
+            samp_width = self.m.AUDIO_OBJECT.get_format_from_width(self.get_sampwidth_from_str(samp_width))
         
         return self.m.AUDIO_OBJECT.open(format=samp_width,
                                         channels=channels,
@@ -662,6 +663,8 @@ class App:
         self.stop_playing()
         
         self.loaded_file = file_path
+        self.setup_song_wave_duration(file_path)
+        
         self.label_at_02.configure(text=f"Loaded: {split(file_path)[1]}")
         self.loaded_buffer = np.array([])
     
@@ -904,7 +907,7 @@ class App:
         
         self.progress_bar = ctk.CTkSlider(self.window,
                                           width=370,
-                                          height=18,
+                                          height=17,
                                           command=self.go_to)
         self.progress_bar.place(relx=0.5, rely=0.92, anchor=ctk.CENTER)
         self.progress_bar.set(0)
