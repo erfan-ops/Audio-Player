@@ -207,6 +207,8 @@ class App:
     def stop_playing(self) -> None:
         self.go_on = False
         if not self.playing:
+            self.i = 0
+            self.wave = self.original_wave
             self.play_btn.configure(text="play", command=self.play_loaded)
         else:
             self.playing = False
