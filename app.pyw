@@ -98,16 +98,22 @@ class App:
         self.label_at_02 = ctk.CTkLabel(self.window, text="", text_color="#409a73")
         self.label_at_02.place(x=10, y=0)
         
+        self.main()
         
         if len(sys.argv) > 1 and os.path.exists(sys.argv[1]):
-            self.song_duration = 0
+            self.i = 0
+            self.playing = False
+            self.stop_playing()
+            
             self.loaded_file = sys.argv[1]
-            self.label_at_02.configure(text=f"Loaded: {os.path.split(self.loaded_file)[1]}")
+            self.setup_song_wave_duration(sys.argv[1])
+            
+            self.label_at_02.configure(text=f"Loaded: {os.path.split(sys.argv[1])[1]}")
+            self.loaded_buffer = np.array([])
+            
             x = Thread(target=self.play, args=(sys.argv[1],))
             x.start()
             self.window.after(self.timer_step_ms, self.update_time)
-        
-        self.main()
         
         self.image_label.tkraise()
         
