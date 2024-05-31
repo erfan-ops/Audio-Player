@@ -1,36 +1,36 @@
-from soundtools import Music, SoundBuffer, Dtype
+import soundtools
+import os
+import sys
+import subprocess
 import numpy as np
 import matplotlib.pyplot as plt
 import customtkinter as ctk
 from tkinter.filedialog import askopenfilename, asksaveasfilename
-from tkinterdnd2 import DND_FILES
-from tkinterdnd2.TkinterDnD import _require, DnDWrapper
+from tkinterdnd2 import DND_FILES, TkinterDnD
 from soundfile import read as sfRead
-from sys import exit as sysExit, argv, platform
-from os import remove
-from os.path import exists, split, splitext
 from threading import Thread
 from pydub.audio_segment import AudioSegment
-from icon import daIconFile
 from tempfile import mkstemp
-from pyaudio import Stream
-from subprocess import check_output, run
 from keyboard import is_pressed
 from time import perf_counter
-from typing import Literal
+from typing import Literal, NoReturn
+from pyaudio import Stream
+from icon import daIconFile
 
 
-class Tk(ctk.CTk, DnDWrapper):
+class Tk(ctk.CTk, TkinterDnD.DnDWrapper):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.TkdndVersion = _require(self)
+        self.TkdndVersion = TkinterDnD._require(self)
 
 
 class App:
+    WIDTH = 480
+    HEIGHT = 360
     def __init__(self) -> None:
-        if platform == "win32":
-            if not b"\n.erfan=" in check_output("assoc", shell=True):
-                run(f"assoc .erfan={__file__}")
+        if sys.platform == "win32":
+            if not b"\n.erfan=" in subprocess.check_output("assoc", shell=True):
+                subprocess.run(f"assoc .erfan={__file__}")
 
         
         self.ICON_PATH = mkstemp()[1]
@@ -56,10 +56,10 @@ class App:
         self.window = Tk()
         self.window.title("Music Player by erfan :D")
         self.window.resizable(False, False)
-        self.window.geometry("480x360")
+        self.window.geometry(f"{self.WIDTH}x{self.HEIGHT}")
         self.window.iconbitmap(default=self.ICON_PATH)
         
-        self.m = Music()
+        self.m = soundtools.Music()
         self.m.init()
         self.window.protocol("WM_DELETE_WINDOW", self.on_quit)
         
@@ -80,12 +80,12 @@ class App:
         self.playing = False
         self.stop_record = False
         self.recording: bytes = bytes()
-        self.loaded_buffer: SoundBuffer = np.array([])
+        self.loaded_buffer: soundtools.SoundBuffer = np.array([])
         self.space_timeout = 0
         self.space_timeout_delay = 0.3
         
         self.loaded_file: str = ""
-        self.original_wave: SoundBuffer = np.array([])
+        self.original_wave: soundtools.SoundBuffer = np.array([])
         self.chunk: int = self.default_chunk
         self.sample_rate: int = 1
         
@@ -99,11 +99,11 @@ class App:
         self.label_at_02.place(x=10, y=0)
         
         
-        if len(argv) > 1 and exists(argv[1]):
+        if len(sys.argv) > 1 and os.path.exists(sys.argv[1]):
             self.song_duration = 0
-            self.loaded_file = argv[1]
-            self.label_at_02.configure(text=f"Loaded: {split(self.loaded_file)[1]}")
-            x = Thread(target=self.play, args=(argv[1],))
+            self.loaded_file = sys.argv[1]
+            self.label_at_02.configure(text=f"Loaded: {os.path.split(self.loaded_file)[1]}")
+            x = Thread(target=self.play, args=(sys.argv[1],))
             x.start()
             self.window.after(self.timer_step_ms, self.update_time)
         
@@ -114,7 +114,7 @@ class App:
         self.window.mainloop()
     
     
-    def visualize_sound(self, wave: SoundBuffer, sample_rate: int) -> None:
+    def visualize_sound(self, wave: soundtools.SoundBuffer, sample_rate: int) -> None:
         times = np.linspace(0, wave.size/sample_rate, wave.size)
         duration = wave.size / sample_rate
         
@@ -156,7 +156,7 @@ class App:
             self.play_file()
     
     
-    def play_buffer(self, wave: SoundBuffer|bytes, chunk:int|None=None) -> None:
+    def play_buffer(self, wave: soundtools.SoundBuffer|bytes, chunk:int|None=None) -> None:
         self.playing = True
         
         self.play_btn.configure(text="pause", command=self.stop_playing)
@@ -195,7 +195,7 @@ class App:
             self.window.after(self.timer_step_ms, self.check_for_resume)
     
     
-    def resume(self, wave: SoundBuffer) -> None:
+    def resume(self, wave: soundtools.SoundBuffer) -> None:
         self.playing = True
         
         self.window.after(self.timer_step_ms, self.update_time)
@@ -220,11 +220,10 @@ class App:
         self.playing = True
         self.timer_text = 0
         
-        fformat = splitext(file_path)[1]
+        fformat = os.path.splitext(file_path)[1]
         fformat = fformat.removeprefix(".")
         
-        chunk = self.default_chunk if not chunk else chunk
-        self.chunk = chunk
+        self.chunk = self.default_chunk if not chunk else chunk
         
         self.window.after(self.timer_step_ms, self.update_time)
         self.play_buffer(self.wave)
@@ -251,7 +250,7 @@ class App:
         
         file_path = self.loaded_file
         
-        fformat = splitext(file_path)[1]
+        fformat = os.path.splitext(file_path)[1]
         fformat = fformat.removeprefix(".")
         
         if fformat == "erfan":
@@ -282,22 +281,22 @@ class App:
         self.visualize_sound(data, sample_rate)
     
     
-    def on_quit(self):
+    def on_quit(self) -> NoReturn:
         self.stop_playing()
         try:
             with open(self.ICON_PATH, "wb") as f:
                 f.truncate(0)
-            remove(self.ICON_PATH)
+            os.remove(self.ICON_PATH)
             self.iconFile.close()
         except Exception:
             pass
         self.m.done()
         self.window.quit()
-        sysExit()
+        sys.exit()
     
     
     def setup_song_wave_duration(self, file_path: str) -> None:
-        fformat = splitext(file_path)[1]
+        fformat = os.path.splitext(file_path)[1]
         fformat = fformat.removeprefix(".")
         
         #-- for ".erfan" files --#
@@ -392,7 +391,7 @@ class App:
             self.playing = False
             self.stop_playing()
             
-            self.label_at_02.configure(text=f"Loaded: {split(file)[1]}")
+            self.label_at_02.configure(text=f"Loaded: {os.path.split(file)[1]}")
             self.loaded_buffer = np.array([])
     
     
@@ -424,7 +423,7 @@ class App:
         return dtype
     
     
-    def get_sampwith_from_dtype(self, dtype: Dtype) -> int:
+    def get_sampwith_from_dtype(self, dtype: soundtools.Dtype) -> int:
         match dtype:
             case np.uint8:
                 dtype = 1
@@ -500,7 +499,7 @@ class App:
         if not file_save_path:
             return
         
-        file_save_name, fformat = splitext(file_save_path)
+        file_save_name, fformat = os.path.splitext(file_save_path)
         fformat = fformat.removeprefix(".")
         
         if fformat == "erfan":
@@ -521,13 +520,13 @@ class App:
         
         file_save_wav = f"{file_save_name}.wav"
         remove_temp_file = False
-        if not exists(file_save_wav):
+        if not os.path.exists(file_save_wav):
             remove_temp_file = True
         
         self.m.export_to_wav(file_save_wav, self.loaded_buffer, self.m.input_rate, self.m.input_dtype)
         
         if fformat != "wav":
-            file_save_name = splitext(file_save_path)[0]
+            file_save_name = os.path.splitext(file_save_path)[0]
             file_export_path = f"{file_save_name}.{fformat}"
             
             if codec in ["adts", "mp3"]:
@@ -539,7 +538,7 @@ class App:
                                                                      format=codec)
             
             if remove_temp_file:
-                remove(file_save_wav)
+                os.remove(file_save_wav)
 
         self.label_at_02.configure(text="successfully exported")
     
@@ -555,8 +554,8 @@ class App:
             
             file_path = self.loaded_file
         
-        direc, file_name = split(file_path)
-        file_name, file_format = splitext(file_name)
+        direc, file_name = os.path.split(file_path)
+        file_name, file_format = os.path.splitext(file_name)
         file_format = file_format.removeprefix(".")
         
         if file_format == fformat:
@@ -597,7 +596,7 @@ class App:
         if not file_save_path:
             return
         
-        fformat = splitext(file_save_path)[1]
+        fformat = os.path.splitext(file_save_path)[1]
         fformat = fformat.removeprefix(".")
         
         codec = fformat
@@ -611,7 +610,7 @@ class App:
         
         if file_format == "erfan":
             wav_file_full_name = direc+file_name+".wav"
-            if not exists(wav_file_full_name) and fformat != "wav":
+            if not os.path.exists(wav_file_full_name) and fformat != "wav":
                 remove_temp_file = True
             
             self.export_to_wav(file_path)
@@ -620,7 +619,7 @@ class App:
         
         if fformat == "erfan":
             wav_file_full_name = direc+file_name+".wav"
-            if not exists(wav_file_full_name):
+            if not os.path.exists(wav_file_full_name):
                 remove_temp_file = True
             
             AudioSegment.from_file(file_path, file_format).export(wav_file_full_name,
@@ -638,7 +637,7 @@ class App:
         self.label_at_02.configure(text="successfully exported")
         
         if remove_temp_file:
-            remove(wav_file_full_name)
+            os.remove(wav_file_full_name)
     
     
     def save_as(self, file_path: str|None=None, fformat: str="wav", bitrate: int=320) -> None:
@@ -654,7 +653,7 @@ class App:
         files = event.data.split("} {")
         for file_path in files:
             file_path = file_path.strip("{}")
-            file_format = splitext(split(file_path)[1])[1][1:]
+            file_format = os.path.splitext(os.path.split(file_path)[1])[1][1:]
             if file_format in ["mp3", "wav", "ogg", "m4a", "aiff", "aifc", "aif", "flac", "wma", "aac", "erfan"]:
                 break
         else:
@@ -667,7 +666,7 @@ class App:
         self.loaded_file = file_path
         self.setup_song_wave_duration(file_path)
         
-        self.label_at_02.configure(text=f"Loaded: {split(file_path)[1]}")
+        self.label_at_02.configure(text=f"Loaded: {os.path.split(file_path)[1]}")
         self.loaded_buffer = np.array([])
     
     
@@ -777,7 +776,7 @@ class App:
         
     
     def show_drag_name(self, event) -> None:
-        file_name = split(event.data.strip("}{"))[1]
+        file_name = os.path.split(event.data.strip("}{"))[1]
         self.label_at_02.configure(text=file_name)
         self.image_label.configure(text=file_name)
         self.image_label.place()
@@ -864,14 +863,14 @@ class App:
                                  command=self.load_file,
                                  width=80,
                                  corner_radius=self.bcr)
-        open_btn.place(relx=0.12, rely=0.12, anchor="center")
+        open_btn.place(relx=0.12, rely=0.12, anchor=ctk.CENTER)
         
         export_btn = ctk.CTkButton(self.window,
                                    text="export",
                                    command=self.export,
                                    width=80,
                                    corner_radius=self.bcr)
-        export_btn.place(relx=0.12, rely=0.22, anchor="center")
+        export_btn.place(relx=0.12, rely=0.22, anchor=ctk.CENTER)
         
         self.play_btn = ctk.CTkButton(self.window,
                                       text="play",

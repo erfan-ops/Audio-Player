@@ -14,10 +14,10 @@ pip install -r REQUIREMENTS.txt
 make sure to include the tkinterdnd2 library
 ```shell
 pip install -U pyinstaller
-pyinstaller --collect-all tkinterdnd2 -F -w -i icon.ico app.py -n 'Audio Player by Erfan ;D'
+pyinstaller --collect-all tkinterdnd2 -F -w -i icon.ico app.pyw -n 'Audio Player by Erfan ;D'
 ```
 
 if got errors run this command instead
 ```shell
-pyinstaller --collect-all TkinterDnD2 -F -w -i icon.ico app.py -n 'Audio Player by Erfan ;D'
+pyinstaller --collect-all TkinterDnD2 -F -w -i icon.ico app.pyw -n 'Audio Player by Erfan ;D'
 ```
