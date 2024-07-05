@@ -70,7 +70,7 @@ amin = m.generate_chord_buffer(("e3", "a4", "c4"), chord_wave, 1) * 3/4
 a5 = m.generate_note_buffer("a5", note_wave, 1)
 
 # making the note just a little staccato so it doesn't connect to the note after it which is the same note
-st_a5 = m.staccato(a5, 1, 0.95)
+st_a5 = m.staccato(a5, 0.95)
 
 ch11 = half(amin + st_a5/4)
 ch12 = half(amin + a5/4)
@@ -105,7 +105,7 @@ series = np.append(gs4[0:len(gs4)//2+3], [half(b5), half(e5), half(eb5), half(d5
 ch22 = np.append(edom7, [edom7, edom7]) + series/5
 
 
-series = np.append(m.staccato(c5[0:len(c5)*3//4+4], 0.75, 0.25), m.staccato(c5[0:len(c5)*3//4+1], 0.75, 0.25))
+series = np.append(m.staccato(c5[0:len(c5)*3//4+4], 0.25), m.staccato(c5[0:len(c5)*3//4+1], 0.25))
 series = np.append(series, half(d5))
 ch23 = double(amin) + series/4
 

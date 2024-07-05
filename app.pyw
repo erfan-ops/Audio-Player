@@ -11,7 +11,7 @@ from soundfile import read as sfRead
 from threading import Thread
 from pydub.audio_segment import AudioSegment
 from tempfile import mkstemp
-from keyboard import is_pressed
+# from keyboard import is_pressed
 from time import perf_counter
 from typing import Literal, NoReturn
 from pyaudio import Stream
@@ -120,9 +120,8 @@ class App:
         self.window.mainloop()
     
     
-    def visualize_sound(self, wave: soundtools.SoundBuffer, sample_rate: int) -> None:
-        times = np.linspace(0, wave.size/sample_rate, wave.size)
-        duration = wave.size / sample_rate
+    def visualize_sound(self, wave: soundtools.SoundBuffer, duration: float) -> None:
+        times = np.linspace(0, duration, wave.size)
         
         
         plt.figure(figsize=(15, 5))
@@ -151,12 +150,10 @@ class App:
             self.duration.configure(text=self.secs2time(self.song_duration))
             self.window.after(self.timer_step_ms, self.update_time)
             
-            y = Thread(target=self.play_buffer, args=(self.loaded_buffer,))
-            y.start()
+            Thread(target=self.play_buffer, args=(self.loaded_buffer,)).start()
         
         elif self.loaded_file:
-            y = Thread(target=self.play, args=(self.loaded_file,))
-            y.start()
+            Thread(target=self.play, args=(self.loaded_file,)).start()
         
         else:
             self.play_file()
@@ -175,9 +172,9 @@ class App:
         self.n_chunks = int(wave.size / chunk)
         for i in range(self.n_chunks):
             self.i += 1
-            if is_pressed("space") and perf_counter() > self.space_timeout:
-                self.stop_playing()
-                self.space_timeout = perf_counter()+self.space_timeout_delay
+            # if is_pressed("space") and perf_counter() > self.space_timeout:
+            #     self.stop_playing()
+            #     self.space_timeout = perf_counter()+self.space_timeout_delay
             if not self.playing:
                 return
             
@@ -192,10 +189,10 @@ class App:
     
     
     def check_for_resume(self) -> None:
-        if is_pressed("space") and perf_counter() > self.space_timeout:
-            self.space_timeout = perf_counter()+self.space_timeout_delay
-            self.resume(self.original_wave[self.i*self.chunk:])
-            return
+        # if is_pressed("space") and perf_counter() > self.space_timeout:
+        #     self.space_timeout = perf_counter()+self.space_timeout_delay
+        #     self.resume(self.original_wave[self.i*self.chunk:])
+        #     return
         
         if not self.playing:
             self.window.after(self.timer_step_ms, self.check_for_resume)
@@ -245,55 +242,25 @@ class App:
     
     def visualize_sound_file(self) -> None:
         if not self.loaded_buffer.all():
-            self.visualize_sound(self.loaded_buffer, self.m.input_rate)
+            self.visualize_sound(self.loaded_buffer, self.song_duration)
             return
         
         
         if not self.loaded_file:
             self.load_file()
-        if not self.loaded_file:
-            return
+            if not self.loaded_file:
+                return
         
-        file_path = self.loaded_file
-        
-        fformat = os.path.splitext(file_path)[1]
-        fformat = fformat.removeprefix(".")
-        
-        if fformat == "erfan":
-            with open(self.loaded_file, "rb") as f:
-                data = f.read()
-                sample_rate = int.from_bytes(data[0:4], "little")
-                dtype = int.from_bytes(data[4:6], "little")
-                n_channels = int.from_bytes(data[6:8], "little")
-                
-                dtype = self.get_sampwidth_from_number(dtype)
-                
-                if n_channels > 1:
-                    data = np.frombuffer(data[8:], dtype=dtype)[0]
-                else:
-                    data = np.frombuffer(data[8:], dtype=dtype)
-        
-        elif fformat in ["aac", "wma", "m4a"]:
-            sound = AudioSegment.from_file(file_path, fformat)
-            sample_rate = sound.frame_rate
-            data = np.array(sound.get_array_of_samples(), dtype=np.float32)
-        
-        else:
-            data, sample_rate = sfRead(file_path)
-            if data.ndim > 1:
-                data = data.reshape(2, data.size//data.ndim)[0]
-        
-        
-        self.visualize_sound(data, sample_rate)
+        self.visualize_sound(self.wave, self.song_duration)
     
     
     def on_quit(self) -> NoReturn:
         self.stop_playing()
         try:
+            self.iconFile.close()
             with open(self.ICON_PATH, "wb") as f:
                 f.truncate(0)
             os.remove(self.ICON_PATH)
-            self.iconFile.close()
         except Exception:
             pass
         self.m.done()
@@ -446,7 +413,7 @@ class App:
             return
         
         if self.song_duration and self.timer_text < self.song_duration:
-            self.timer_text = (self.original_wave.size - self.original_wave[self.i*self.chunk:].size) / self.sample_rate
+            self.timer_text = (self.original_wave.size - self.original_wave[self.i*self.chunk:].size) / self.sample_rate / self.original_wave.ndim
             
             self.timer.configure(text=self.secs2time(self.timer_text))
             self.window.after(self.timer_step_ms, self.update_time)
@@ -798,9 +765,9 @@ class App:
         self.recording: bytes = bytes()
         
         while not self.stop_record:
-            if is_pressed("space"):
-                self.stop_record_func()
-                return
+            # if is_pressed("space"):
+            #     self.stop_record_func()
+            #     return
             
             data = self.m.input_stream.read(self.m.input_chunk)
             self.recording += data
@@ -824,6 +791,7 @@ class App:
         self.label_at_02.configure(text="sound loaded")
         
         self.loaded_buffer = np.frombuffer(self.recording, self.m.input_dtype)
+        self.song_duration = self.loaded_buffer.size / self.m.input_rate
     
     
     def record_mic(self) -> None:
@@ -837,7 +805,7 @@ class App:
     def secs2time(self, secs) -> str:
         minuts = int(secs/60)
         seconds = secs - minuts*60
-        return "%d:%.2f" % (minuts, seconds)
+        return f"{minuts}:{seconds:0>5.2f}"
     
     
     def go_to(self, event) -> None:
@@ -846,14 +814,14 @@ class App:
             self.go_on = True
         self.slider_pos = event
         
-        self.i = int(self.slider_pos * int(self.original_wave.size / self.chunk))
-        self.timer_text = (self.original_wave.size - self.original_wave[self.i*self.chunk:].size) / self.sample_rate
+        self.i = int(self.slider_pos * int(self.original_wave.size / self.chunk / self.original_wave.ndim))
+        self.timer_text = (self.original_wave.size - self.original_wave[self.i*self.chunk:].size) / self.sample_rate / self.original_wave.ndim
         self.timer.configure(text=self.secs2time(self.timer_text))
     
     
     def end_go_to(self, event) -> None:
-        self.wave = self.original_wave[int(self.original_wave.size*self.slider_pos):]
-        self.i = int(self.slider_pos * int(self.original_wave.size / self.chunk))
+        self.wave = self.original_wave[int(self.original_wave.size*self.slider_pos/self.original_wave.ndim):]
+        self.i = int(self.slider_pos * int(self.original_wave.size / self.chunk / self.original_wave.ndim))
         
         if not self.wave.size:
             self.playing = False
@@ -861,6 +829,12 @@ class App:
             return
         if self.go_on:
             self.resume(self.wave)
+    
+    
+    def reverse(self) -> None:
+        self.wave = np.flip(self.wave)
+        self.original_wave = np.flip(self.original_wave)
+        self.label_at_02.configure(text="successfully reversed")
     
     
     def main(self) -> None:
@@ -893,11 +867,18 @@ class App:
         self.record_btn.place(relx=0.5, rely=0.12, anchor=ctk.CENTER)
         
         visualize_btn = ctk.CTkButton(self.window,
-                                     text="visualize",
-                                     command=self.visualize_sound_file,
-                                     width=80,
-                                     corner_radius=self.bcr)
+                                      text="visualize",
+                                      command=self.visualize_sound_file,
+                                      width=80,
+                                      corner_radius=self.bcr)
         visualize_btn.place(relx=0.87, rely=0.12, anchor=ctk.CENTER)
+        
+        reverse_btn = ctk.CTkButton(self.window,
+                                    text="reverse",
+                                    command=self.reverse,
+                                    width=80,
+                                    corner_radius=self.bcr)
+        reverse_btn.place(relx=0.87, rely=0.22, anchor=ctk.CENTER)
         
         drag_lab = ctk.CTkLabel(self.window,
                                 text="drag",
