@@ -6,3 +6,5 @@ version_setup.py
 versionfile.txt
 Music Player.pyproj
 venv
+examples/world.execute(me);
+test.py

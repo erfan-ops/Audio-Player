@@ -10,9 +10,8 @@ from tkinterdnd2 import DND_FILES, TkinterDnD
 from soundfile import read as sfRead
 from threading import Thread
 from pydub.audio_segment import AudioSegment
+from time import time, ctime
 from tempfile import mkstemp
-# from keyboard import is_pressed
-from time import perf_counter
 from typing import Literal, NoReturn
 from pyaudio import Stream
 from icon import daIconFile
@@ -122,7 +121,6 @@ class App:
     
     def visualize_sound(self, wave: soundtools.SoundBuffer, duration: float) -> None:
         times = np.linspace(0, duration, wave.size)
-        
         
         plt.figure(figsize=(15, 5))
         plt.plot(times, wave)
@@ -441,106 +439,9 @@ class App:
         self.m.export_to_wav(file_path, data, sample_rate, dtype)
     
     
-    def save_recording(self, fformat: str="wav", bitrate: int=320) -> None:
+    def save_as(self, fformat: str="wav", bitrate: int=320) -> None:
         file_save_path = asksaveasfilename(title="save to:",
-                                            initialfile="output",
-                                            defaultextension=fformat,
-                                            filetypes=[("sound files", ".erfan"),
-                                                        ("sound files", ".mp3"),
-                                                        ("sound files", ".wav"),
-                                                        ("sound files", ".aiff"),
-                                                        ("sound files", ".aifc"),
-                                                        ("sound files", ".aif"),
-                                                        ("sound files", ".flac"),
-                                                        ("sound files", ".ogg"),
-                                                        ("sound files", ".m4a"),
-                                                        ("sound files", ".aac"),
-                                                        ("sound files", ".wma"),
-                                                        ("erfan", ".erfan"),
-                                                        ("mp3", ".mp3"),
-                                                        ("wav", ".wav"),
-                                                        ("aiff", ".aiff"),
-                                                        ("aifc", ".aifc"),
-                                                        ("aif", ".aif"),
-                                                        ("wma", ".wma"),
-                                                        ("flac", ".flac"),
-                                                        ("ogg", ".ogg"),
-                                                        ("m4a", ".m4a"),
-                                                        ("aac", ".aac"),
-                                                        ("wma", ".wma"),
-                                                        ("All Files", ".*")])
-        if not file_save_path:
-            return
-        
-        file_save_name, fformat = os.path.splitext(file_save_path)
-        fformat = fformat.removeprefix(".")
-        
-        if fformat == "erfan":
-            self.m.export_to_erfan(file_save_path,
-                                   self.loaded_buffer,
-                                   self.m.input_rate,
-                                   self.m.input_dtype,
-                                   self.loaded_buffer.ndim)
-            return
-        
-        codec = fformat
-        
-        if fformat in ["aac", "m4a", "wma"]:
-            codec = "adts"
-        
-        elif fformat in ["aiff", "aifc", "aif"]:
-            codec = "aiff"
-        
-        file_save_wav = f"{file_save_name}.wav"
-        remove_temp_file = False
-        if not os.path.exists(file_save_wav):
-            remove_temp_file = True
-        
-        self.m.export_to_wav(file_save_wav, self.loaded_buffer, self.m.input_rate, self.m.input_dtype)
-        
-        if fformat != "wav":
-            file_save_name = os.path.splitext(file_save_path)[0]
-            file_export_path = f"{file_save_name}.{fformat}"
-            
-            if codec in ["adts", "mp3"]:
-                AudioSegment.from_file(file_save_wav, "wav").export(file_export_path,
-                                                                     format=codec,
-                                                                     bitrate=str(bitrate)+"k")
-            else:
-                AudioSegment.from_file(file_save_wav, "wav").export(file_export_path,
-                                                                     format=codec)
-            
-            if remove_temp_file:
-                os.remove(file_save_wav)
-
-        self.label_at_02.configure(text="successfully exported")
-    
-    
-    def save_file(self, file_path: str|None=None, fformat: str="wav", bitrate: int=320) -> None:
-        remove_temp_file = False
-        
-        if not file_path:
-            if not self.loaded_file:
-                self.load_file()
-                if not self.loaded_file:
-                    return
-            
-            file_path = self.loaded_file
-        
-        direc, file_name = os.path.split(file_path)
-        file_name, file_format = os.path.splitext(file_name)
-        file_format = file_format.removeprefix(".")
-        
-        if file_format == fformat:
-            return
-        
-        if direc:
-            direc += "/"
-        
-        
-        file_save_path = asksaveasfilename(title="save to:",
-                                           initialdir=direc,
-                                           initialfile=file_name,
+                                           initialfile=f"output.{fformat}",
                                            defaultextension=fformat,
                                            filetypes=[("sound files", ".erfan"),
                                                       ("sound files", ".mp3"),
@@ -569,58 +470,39 @@ class App:
         if not file_save_path:
             return
         
-        fformat = os.path.splitext(file_save_path)[1]
-        fformat = fformat.removeprefix(".")
+        direc, file_name = os.path.split(file_save_path)
+        file_name, file_format = os.path.splitext(file_name)
+        file_format = file_format.removeprefix(".")
         
-        codec = fformat
+        temp_file_path = os.path.join(direc, f"temp {ctime(time()).replace(":", "-")}.wav")
+        self.m.export_to_wav(temp_file_path, self.original_wave, self.sample_rate, self.original_wave.dtype)
         
-        if fformat in ["aac", "m4a", "wma"]:
+        if file_format in ["aac", "m4a", "wma"]:
             codec = "adts"
         
-        elif fformat in ["aiff", "aifc", "aif"]:
+        elif file_format in ["aiff", "aifc", "aif"]:
             codec = "aiff"
+        
+        else:
+            codec = file_format
         
         
         if file_format == "erfan":
-            wav_file_full_name = direc+file_name+".wav"
-            if not os.path.exists(wav_file_full_name) and fformat != "wav":
-                remove_temp_file = True
-            
-            self.export_to_wav(file_path)
-            file_format = "wav"
-            file_path = direc+file_name+"."+file_format
-        
-        if fformat == "erfan":
-            wav_file_full_name = direc+file_name+".wav"
-            if not os.path.exists(wav_file_full_name):
-                remove_temp_file = True
-            
-            AudioSegment.from_file(file_path, file_format).export(wav_file_full_name,
-                                                                  format="wav")
-            self.m.wav_to_erfan(wav_file_full_name)
+            self.m.wav_to_erfan(temp_file_path, file_save_path)
         
         elif codec in ["adts", "mp3"]:
-            AudioSegment.from_file(file_path, file_format).export(file_save_path,
-                                                                  format=codec,
-                                                                  bitrate=str(bitrate)+"k")
+            AudioSegment.from_file(temp_file_path, "wav").export(file_save_path,
+                                                                 format=codec,
+                                                                 bitrate=str(bitrate)+"k")
         else:
-            AudioSegment.from_file(file_path, file_format).export(file_save_path,
-                                                                  format=codec)
+            AudioSegment.from_file(temp_file_path, "wav").export(file_save_path,
+                                                                 format=codec)
         
         self.label_at_02.configure(text="successfully exported")
-        
-        if remove_temp_file:
-            os.remove(wav_file_full_name)
+
+        os.remove(temp_file_path)
     
-    
-    def save_as(self, file_path: str|None=None, fformat: str="wav", bitrate: int=320) -> None:
-        if not self.loaded_buffer.all():
-            self.save_recording(fformat, bitrate)
-        
-        else:
-            self.save_file(file_path, fformat, bitrate)
-        
-    
+
     def load_dragged(self, event) -> None:
         self.image_label.place_forget()
         files = event.data.split("} {")
